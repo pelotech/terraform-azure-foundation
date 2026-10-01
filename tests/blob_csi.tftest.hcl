@@ -1,14 +1,17 @@
-# Blob CSI: driver flag on the cluster, a locked-down storage account, kubelet access.
+# Blob CSI: off by default; when enabled, the driver flag, a locked-down storage account and kubelet access.
 
 mock_provider "azurerm" {
   source = "./tests/mocks"
 }
 
-run "defaults_create_a_locked_down_account" {
+run "enabled_creates_a_locked_down_account" {
   command = plan
+  variables {
+    blob_csi = { enabled = true }
+  }
   assert {
     condition     = azurerm_kubernetes_cluster.this[0].storage_profile[0].blob_driver_enabled == true
-    error_message = "the blob driver is on by default"
+    error_message = "enabled turns the blob driver on"
   }
   assert {
     condition     = length(azurerm_storage_account.blob_csi) == 1 && azurerm_storage_account.blob_csi[0].name == "acmeplatformdevcsi"
@@ -31,7 +34,8 @@ run "defaults_create_a_locked_down_account" {
 run "uppercase_owner_is_lowercased" {
   command = plan
   variables {
-    tags = { Owner = "ACME", Environment = "test" }
+    blob_csi = { enabled = true }
+    tags     = { Owner = "ACME", Environment = "test" }
   }
   assert {
     condition     = azurerm_storage_account.blob_csi[0].name == "acmeplatformdevcsi"
@@ -42,7 +46,8 @@ run "uppercase_owner_is_lowercased" {
 run "long_names_are_cut_to_24" {
   command = plan
   variables {
-    name = "abcdefghijklmnopqrstuvwxyz"
+    blob_csi = { enabled = true }
+    name     = "abcdefghijklmnopqrstuvwxyz"
   }
   assert {
     condition     = length(azurerm_storage_account.blob_csi[0].name) == 24
@@ -53,7 +58,7 @@ run "long_names_are_cut_to_24" {
 run "no_account_when_not_requested" {
   command = plan
   variables {
-    blob_csi = { create_storage_account = false }
+    blob_csi = { enabled = true, create_storage_account = false }
   }
   assert {
     condition     = length(azurerm_storage_account.blob_csi) == 0 && length(azurerm_role_assignment.kubelet_blob_storage_account) == 0 && azurerm_kubernetes_cluster.this[0].storage_profile[0].blob_driver_enabled == true
@@ -61,21 +66,18 @@ run "no_account_when_not_requested" {
   }
 }
 
-run "driver_off" {
+run "off_by_default" {
   command = plan
-  variables {
-    blob_csi = { enabled = false }
-  }
   assert {
     condition     = azurerm_kubernetes_cluster.this[0].storage_profile[0].blob_driver_enabled == false && length(azurerm_storage_account.blob_csi) == 0
-    error_message = "enabled = false turns the driver off and creates nothing"
+    error_message = "the blob driver is off by default and creates nothing"
   }
 }
 
 run "explicit_name_wins" {
   command = plan
   variables {
-    blob_csi = { storage_account_name = "platformdevblobs" }
+    blob_csi = { enabled = true, storage_account_name = "platformdevblobs" }
   }
   assert {
     condition     = azurerm_storage_account.blob_csi[0].name == "platformdevblobs"

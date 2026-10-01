@@ -141,6 +141,7 @@ run "every_contract_output_is_populated" {
   }
 
   variables {
+    blob_csi      = { enabled = true }
     azure_cloud   = "usgovernment"
     cni           = "kube-ovn"
     cni_node_pool = { kubernetes_version = "1.34" }

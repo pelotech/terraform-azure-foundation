@@ -64,8 +64,8 @@ run "defaults" {
     error_message = "KMS on by default must attach the key management block"
   }
   assert {
-    condition     = azurerm_kubernetes_cluster.this[0].storage_profile[0].disk_driver_enabled == true
-    error_message = "the disk CSI driver stays on"
+    condition     = !azurerm_kubernetes_cluster.this[0].storage_profile[0].disk_driver_enabled && !azurerm_kubernetes_cluster.this[0].storage_profile[0].file_driver_enabled && !azurerm_kubernetes_cluster.this[0].storage_profile[0].snapshot_controller_enabled && !azurerm_kubernetes_cluster.this[0].storage_profile[0].blob_driver_enabled
+    error_message = "every AKS-managed CSI driver is off by default"
   }
   assert {
     condition     = length(azurerm_kubernetes_cluster.this[0].api_server_access_profile) == 0
@@ -268,5 +268,16 @@ run "create_false_keeps_only_the_network" {
   assert {
     condition     = length(azurerm_virtual_network.this) == 1 && length(azurerm_nat_gateway.this) == 1
     error_message = "create_cluster = false does not gate the network"
+  }
+}
+
+run "storage_drivers_can_be_enabled" {
+  command = plan
+  variables {
+    storage_drivers = { disk = true, file = true, snapshot_controller = true }
+  }
+  assert {
+    condition     = azurerm_kubernetes_cluster.this[0].storage_profile[0].disk_driver_enabled && azurerm_kubernetes_cluster.this[0].storage_profile[0].file_driver_enabled && azurerm_kubernetes_cluster.this[0].storage_profile[0].snapshot_controller_enabled
+    error_message = "storage_drivers must turn the AKS-managed drivers on"
   }
 }

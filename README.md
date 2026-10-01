@@ -9,7 +9,7 @@ This module creates an AKS cluster that runs a CNI you install yourself. It crea
 - etcd encryption with a customer-managed key in a Key Vault
 - workload identities for external-dns and cert-manager
 - the Karpenter controller identity
-- a storage account for the blob CSI driver
+- optional AKS-managed CSI drivers, all off by default
 
 Its outputs feed the helm provider and the cni-bootstrap module. The section "Install the CNI" lists the wiring.
 
@@ -159,12 +159,22 @@ outputs: `karpenter_client_id`, `node_resource_group_name`, `node_subnet_id` and
 
 Set `karpenter.mode = "node-auto-provisioning"` to use AKS node auto provisioning instead.
 
-## Blob CSI storage
+## Storage drivers
 
-`blob_csi` turns on the AKS blob CSI driver and creates a storage account for it. The generated name is the Owner tag
-plus the cluster name plus `csi`, lowercased, letters and digits only, cut to 24 characters. Set
-`blob_csi.storage_account_name` when that name is taken. Use the `blob_csi_storage_account_name` output as the
-`storageAccount` of a PersistentVolume.
+Every AKS-managed CSI driver is off by default. Storage then comes from charts you deploy and pin yourself, such as the
+upstream Azure Disk CSI driver with external-snapshotter, or Rook Ceph. Turn a managed driver on to let AKS run and
+upgrade it with the cluster version.
+
+| Input                                  | Driver                                   |
+| -------------------------------------- | ---------------------------------------- |
+| `storage_drivers.disk`                 | Azure Disk CSI, with the default StorageClasses |
+| `storage_drivers.file`                 | Azure Files CSI                          |
+| `storage_drivers.snapshot_controller`  | CSI snapshot controller                  |
+| `blob_csi.enabled`                     | Azure Blob CSI, plus a storage account   |
+
+With `blob_csi.enabled`, the module creates a storage account named from the Owner tag plus the cluster name plus
+`csi`, lowercased, letters and digits only, cut to 24 characters. Set `blob_csi.storage_account_name` when that name is
+taken. Use the `blob_csi_storage_account_name` output as the `storageAccount` of a PersistentVolume.
 
 ## Recycle the CNI node pool
 
@@ -242,7 +252,7 @@ No modules.
 | <a name="input_automatic_upgrade_channel"></a> [automatic\_upgrade\_channel](#input\_automatic\_upgrade\_channel) | AKS control plane upgrade channel: none, patch, rapid, node-image or stable. Each value follows the azurerm spelling. | `string` | `"none"` | no |
 | <a name="input_azure_cloud"></a> [azure\_cloud](#input\_azure\_cloud) | Azure cloud for the kubelogin --environment flag in kube\_exec: public or usgovernment. Set it to the same cloud as your azurerm provider. | `string` | `"public"` | no |
 | <a name="input_azure_cni"></a> [azure\_cni](#input\_azure\_cni) | Ignored unless cni = azure-cni. network\_plugin\_mode is overlay or node-subnet; network\_data\_plane is azure or cilium. | <pre>object({<br/>    network_plugin_mode = optional(string, "overlay")<br/>    network_data_plane  = optional(string, "azure")<br/>  })</pre> | `{}` | no |
-| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | Turns on the AKS blob CSI driver and creates its storage account. Set storage\_account\_name when the generated <Owner tag><name>csi name is taken. | <pre>object({<br/>    enabled                = optional(bool, true)<br/>    create_storage_account = optional(bool, true)<br/>    storage_account_name   = optional(string)<br/>  })</pre> | `{}` | no |
+| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | AKS-managed blob CSI driver with a storage account for it, off by default. Set storage\_account\_name when the generated <Owner tag><name>csi name is taken. | <pre>object({<br/>    enabled                = optional(bool, false)<br/>    create_storage_account = optional(bool, true)<br/>    storage_account_name   = optional(string)<br/>  })</pre> | `{}` | no |
 | <a name="input_cluster_enabled_log_types"></a> [cluster\_enabled\_log\_types](#input\_cluster\_enabled\_log\_types) | AKS control plane log categories sent to cluster\_log\_analytics\_workspace\_id. Empty sends nothing. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_authorized_ip_ranges"></a> [cluster\_endpoint\_authorized\_ip\_ranges](#input\_cluster\_endpoint\_authorized\_ip\_ranges) | CIDRs allowed to reach the public API server. Empty allows all. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_public_access"></a> [cluster\_endpoint\_public\_access](#input\_cluster\_endpoint\_public\_access) | Makes the API server reachable from the internet. false creates a private cluster, which needs VNet connectivity to run cni-bootstrap. | `bool` | `true` | no |
@@ -265,6 +275,7 @@ No modules.
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Resource group for every resource. null generates rg-<name>. | `string` | `null` | no |
 | <a name="input_service_cidr"></a> [service\_cidr](#input\_service\_cidr) | Kubernetes service CIDR, with a prefix longer than /12. It must not overlap the VNet, pod\_cidr or the ranges AKS reserves. | `string` | `"10.96.0.0/16"` | no |
 | <a name="input_sku_tier"></a> [sku\_tier](#input\_sku\_tier) | AKS pricing tier: Free, Standard or Premium. Standard includes the uptime SLA. | `string` | `"Standard"` | no |
+| <a name="input_storage_drivers"></a> [storage\_drivers](#input\_storage\_drivers) | AKS-managed CSI drivers and snapshot controller. All off by default, so storage comes from charts you pin yourself; turn one on to let AKS run and upgrade it. | <pre>object({<br/>    disk                = optional(bool, false)<br/>    file                = optional(bool, false)<br/>    snapshot_controller = optional(bool, false)<br/>  })</pre> | `{}` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags for every resource. The Owner tag, when present, seeds the blob CSI storage account name. | `map(string)` | `{}` | no |
 | <a name="input_vnet"></a> [vnet](#input\_vnet) | VNet the module creates; ignored when existing\_vnet is set. Size node\_subnet\_cidr for the maximum node count plus surge and private endpoints. | <pre>object({<br/>    cidr                 = optional(string, "10.0.0.0/16")<br/>    node_subnet_cidr     = optional(string, "10.0.0.0/22")<br/>    database_subnet_cidr = optional(string)<br/>    service_endpoints    = optional(list(string), [])<br/>  })</pre> | `{}` | no |
 | <a name="input_workload_identity"></a> [workload\_identity](#input\_workload\_identity) | Workload identities for external\_dns and cert\_manager. Use overrides.<identity>.enabled to change one, and dns\_zone\_ids to grant it DNS Zone Contributor on those zones. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    overrides = optional(object({<br/>      external_dns = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>      cert_manager = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>    }), {})<br/>  })</pre> | `{}` | no |

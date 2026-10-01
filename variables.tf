@@ -426,15 +426,26 @@ variable "karpenter" {
   }
 }
 
+variable "storage_drivers" {
+  type = object({
+    disk                = optional(bool, false)
+    file                = optional(bool, false)
+    snapshot_controller = optional(bool, false)
+  })
+  default     = {}
+  nullable    = false
+  description = "AKS-managed CSI drivers and snapshot controller. All off by default, so storage comes from charts you pin yourself; turn one on to let AKS run and upgrade it."
+}
+
 variable "blob_csi" {
   type = object({
-    enabled                = optional(bool, true)
+    enabled                = optional(bool, false)
     create_storage_account = optional(bool, true)
     storage_account_name   = optional(string)
   })
   default     = {}
   nullable    = false
-  description = "Turns on the AKS blob CSI driver and creates its storage account. Set storage_account_name when the generated <Owner tag><name>csi name is taken."
+  description = "AKS-managed blob CSI driver with a storage account for it, off by default. Set storage_account_name when the generated <Owner tag><name>csi name is taken."
 
   validation {
     condition     = var.blob_csi.storage_account_name == null ? true : can(regex("^[a-z0-9]{3,24}$", var.blob_csi.storage_account_name))
