@@ -56,43 +56,26 @@ provider "helm" {
 
 ## Install the CNI
 
-Apply cni-bootstrap after this module. Its defaults assume EKS, so pass the AKS settings through `helm_set`.
-
-For kube-ovn, set `wait_for_nodes = false`: the cni-bootstrap node poll cannot reach AKS. Before you apply it,
-check that the CNI node pool has registered:
-
-```bash
-kubectl get nodes -l kube-ovn/role=master
-```
+Apply cni-bootstrap after this module. Every input it needs comes from this module's outputs:
 
 ```hcl
 module "cni" {
-  source         = "github.com/pelotech/terraform-foundation-aws-stack//modules/cni-bootstrap?ref=v9.1.1"
-  cni            = "kube-ovn-v2"
-  service_cidr   = module.stack.cluster_service_cidr
-  wait_for_nodes = false
-  helm_set = [
-    { name = "networking.pods.cidr.v4", value = module.stack.cluster_pod_cidr },
-    { name = "networking.pods.gateways.v4", value = cidrhost(module.stack.cluster_pod_cidr, 1) },
-  ]
+  source                  = "github.com/pelotech/terraform-helm-cni-bootstrap?ref=<release tag>"
+  cloud                   = module.stack.cloud
+  cni                     = "kube-ovn-v2"
+  cluster_endpoint        = module.stack.cluster_endpoint
+  cluster_ca_certificate  = module.stack.cluster_ca_certificate
+  kube_exec               = module.stack.kube_exec
+  k8s_service_host        = module.stack.cluster_api_host
+  service_cidr            = module.stack.cluster_service_cidr
+  pod_cidr                = module.stack.cluster_pod_cidr
+  wait_for_nodes_count    = module.stack.cni_node_size
+  wait_for_nodes_selector = module.stack.cni_node_selector
 }
 ```
 
-For Cilium, keep kube-proxy and tell Cilium it runs on AKS:
-
-```hcl
-module "cni" {
-  source                 = "github.com/pelotech/terraform-foundation-aws-stack//modules/cni-bootstrap?ref=v9.1.1"
-  cni                    = "cilium"
-  kube_proxy_replacement = false
-  helm_set = [
-    { name = "aksbyocni.enabled", value = "true" },
-    { name = "ipam.operator.clusterPoolIPv4PodCIDRList", value = "{${module.stack.cluster_pod_cidr}}" },
-  ]
-}
-```
-
-Outputs made for cni-bootstrap, for when its inputs accept them:
+For Cilium, set `cni = "cilium"` with the same inputs. `cloud = "azure"` keeps kube-proxy on and turns on the AKS
+bring-your-own-CNI mode. The apply host needs `kubectl` and `kubelogin` for the kube-ovn node poll.
 
 | Output                   | cni-bootstrap input       |
 | ------------------------ | ------------------------- |
