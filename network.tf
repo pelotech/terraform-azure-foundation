@@ -1,0 +1,101 @@
+locals {
+  create_vnet        = var.existing_vnet == null
+  create_nat_gateway = local.create_vnet && coalesce(var.nat_gateway.enabled, true)
+  node_subnet_id     = local.create_vnet ? azurerm_subnet.nodes[0].id : var.existing_vnet.node_subnet_id
+  outbound_type      = local.create_vnet ? (local.create_nat_gateway ? "userAssignedNATGateway" : "loadBalancer") : var.existing_vnet.outbound_type
+
+  aks_reserved_cidrs = ["169.254.0.0/16", "172.30.0.0/16", "172.31.0.0/16", "192.0.2.0/24"]
+  # CIDRs each variable must not overlap; the VNet counts only when the module creates it.
+  pod_cidr_must_avoid     = concat(local.aks_reserved_cidrs, [var.service_cidr], local.create_vnet ? [var.vnet.cidr] : [])
+  service_cidr_must_avoid = concat(local.aks_reserved_cidrs, local.create_vnet ? [var.vnet.cidr] : [])
+}
+
+resource "azurerm_virtual_network" "this" {
+  count               = local.create_vnet ? 1 : 0
+  name                = "vnet-${var.name}"
+  location            = var.location
+  resource_group_name = local.resource_group_name
+  address_space       = [var.vnet.cidr]
+  tags                = var.tags
+}
+
+resource "azurerm_subnet" "nodes" {
+  count                = local.create_vnet ? 1 : 0
+  name                 = "snet-${var.name}-nodes"
+  resource_group_name  = local.resource_group_name
+  virtual_network_name = azurerm_virtual_network.this[0].name
+  address_prefixes     = [var.vnet.node_subnet_cidr]
+  # Egress is the NAT Gateway or the AKS load balancer, never Azure's implicit default outbound.
+  default_outbound_access_enabled = false
+
+  dynamic "service_endpoint" {
+    for_each = toset(var.vnet.service_endpoints)
+    content {
+      service = service_endpoint.value
+    }
+  }
+}
+
+resource "azurerm_subnet" "database" {
+  count                           = local.create_vnet && var.vnet.database_subnet_cidr != null ? 1 : 0
+  name                            = "snet-${var.name}-database"
+  resource_group_name             = local.resource_group_name
+  virtual_network_name            = azurerm_virtual_network.this[0].name
+  address_prefixes                = [var.vnet.database_subnet_cidr]
+  default_outbound_access_enabled = false
+}
+
+resource "azurerm_public_ip" "nat" {
+  count               = local.create_nat_gateway ? var.nat_gateway.public_ip_count : 0
+  name                = "pip-${var.name}-nat-${count.index}"
+  location            = var.location
+  resource_group_name = local.resource_group_name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags = merge(var.tags, {
+    Name = "nat-${var.name}-${count.index}"
+  })
+}
+
+resource "azurerm_nat_gateway" "this" {
+  count                   = local.create_nat_gateway ? 1 : 0
+  name                    = "ng-${var.name}"
+  location                = var.location
+  resource_group_name     = local.resource_group_name
+  sku_name                = "Standard"
+  idle_timeout_in_minutes = var.nat_gateway.idle_timeout_minutes
+  tags                    = var.tags
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "nat" {
+  count                = local.create_nat_gateway ? var.nat_gateway.public_ip_count : 0
+  nat_gateway_id       = azurerm_nat_gateway.this[0].id
+  public_ip_address_id = azurerm_public_ip.nat[count.index].id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "nodes" {
+  count          = local.create_nat_gateway ? 1 : 0
+  subnet_id      = azurerm_subnet.nodes[0].id
+  nat_gateway_id = azurerm_nat_gateway.this[0].id
+}
+
+resource "azurerm_private_endpoint" "node_subnet" {
+  for_each            = var.private_endpoints
+  name                = "pe-${var.name}-${each.key}"
+  location            = var.location
+  resource_group_name = local.resource_group_name
+  subnet_id           = local.node_subnet_id
+  tags                = var.tags
+
+  private_service_connection {
+    name                           = "psc-${var.name}-${each.key}"
+    private_connection_resource_id = each.value.resource_id
+    subresource_names              = each.value.subresource_names
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = each.value.private_dns_zone_ids
+  }
+}

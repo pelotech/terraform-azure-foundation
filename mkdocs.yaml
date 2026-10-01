@@ -1,0 +1,15 @@
+site_name: terraform-azure-foundation
+site_description: Terraform module for the foundation stack on Azure
+
+# docs_dir points at the repo root because the docs live alongside the code (README.md) rather
+# than in a docs/ tree. Without this, the Backstage TechDocs build (catalog-info.yaml) fails.
+docs_dir: .
+
+nav:
+  - Home: README.md
+
+exclude_docs: |
+  .terraform/
+
+plugins:
+  - techdocs-core

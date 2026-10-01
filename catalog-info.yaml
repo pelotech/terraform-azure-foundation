@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: terraform-azure-foundation
+  description: Terraform module to bootstrap an AKS cluster on Azure
+  tags:
+    - terraform
+    - k8s
+  annotations:
+    github.com/project-slug: pelotech/terraform-azure-foundation
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: infrastructure
+  lifecycle: production
+  # Keep in sync with .github/CODEOWNERS.
+  owner: group:pelotech/foundation

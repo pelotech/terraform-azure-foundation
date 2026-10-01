@@ -1,0 +1,11 @@
+# Trivy IaC findings to suppress.
+# Format: one Trivy check ID per line.
+# Add a comment above each entry explaining why it is suppressed.
+
+# The API server is public by default, gated by cluster_endpoint_public_access. Consumers restrict
+# it with cluster_endpoint_authorized_ip_ranges or set the variable to false.
+AVD-AZU-0041
+
+# cilium and kube-ovn run with network_plugin = none (bring-your-own CNI) and enforce network
+# policy themselves, so the AKS network_policy attribute is never set.
+AVD-AZU-0043
