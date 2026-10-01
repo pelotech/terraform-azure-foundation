@@ -9,3 +9,8 @@ AVD-AZU-0041
 # cilium and kube-ovn run with network_plugin = none (bring-your-own CNI) and enforce network
 # policy themselves, so the AKS network_policy attribute is never set.
 AVD-AZU-0043
+
+# The Key Vault has no network ACL by default: with a default-deny ACL, an operator applying from
+# outside Azure cannot create the etcd key. kms.key_vault_network_access = "Private" is the hardened
+# path, with a private endpoint the consumer provides.
+AVD-AZU-0013
