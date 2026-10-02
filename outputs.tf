@@ -50,6 +50,17 @@ output "cni_node_selector" {
   value       = local.cni_node_pool_selector
 }
 
+# Subscription and tenant, for charts that need them next to the identities: external-dns, cert-manager, Karpenter.
+output "subscription_id" {
+  description = "Azure subscription the stack runs in."
+  value       = data.azurerm_client_config.current.subscription_id
+}
+
+output "tenant_id" {
+  description = "Entra tenant of the subscription."
+  value       = data.azurerm_client_config.current.tenant_id
+}
+
 # Resource group, network and cluster.
 output "resource_group_name" {
   description = "Resource group holding the module's resources."

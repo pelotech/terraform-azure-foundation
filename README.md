@@ -328,6 +328,8 @@ No modules.
 | <a name="output_outbound_type_resolved"></a> [outbound\_type\_resolved](#output\_outbound\_type\_resolved) | AKS outbound\_type after resolving nat\_gateway and existing\_vnet. |
 | <a name="output_region"></a> [region](#output\_region) | Same value as location, for consumers that expect an output named region. |
 | <a name="output_resource_group_name"></a> [resource\_group\_name](#output\_resource\_group\_name) | Resource group holding the module's resources. |
+| <a name="output_subscription_id"></a> [subscription\_id](#output\_subscription\_id) | Azure subscription the stack runs in. |
+| <a name="output_tenant_id"></a> [tenant\_id](#output\_tenant\_id) | Entra tenant of the subscription. |
 | <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | ID of the VNet, created or taken from existing\_vnet. |
 | <a name="output_workload_identity_enabled_resolved"></a> [workload\_identity\_enabled\_resolved](#output\_workload\_identity\_enabled\_resolved) | Which workload identities are created, after create\_cluster, enabled and overrides. |
 | <a name="output_workload_identity_service_accounts_resolved"></a> [workload\_identity\_service\_accounts\_resolved](#output\_workload\_identity\_service\_accounts\_resolved) | Namespace and service account each created identity federates with. |

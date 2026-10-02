@@ -180,6 +180,10 @@ run "every_contract_output_is_populated" {
     error_message = "kube_exec env is empty by default"
   }
   assert {
+    condition     = output.subscription_id == "00000000-0000-0000-0000-000000000002" && output.tenant_id == "00000000-0000-0000-0000-000000000001"
+    error_message = "subscription_id and tenant_id must come from the provider's client config"
+  }
+  assert {
     condition     = output.oidc_issuer_url != null && output.node_resource_group_name == "MC_platformdev"
     error_message = "issuer and node resource group pass through"
   }
