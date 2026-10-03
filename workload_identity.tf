@@ -19,13 +19,14 @@ locals {
   ]...)
 
   # external-dns lists zones through their resource group, so it needs Reader there too. The key is
-  # lowercased for stability; the scope keeps the casing Azure returns, or every plan replaces it.
+  # lowercased so ids that differ only by case share one grant; the scope keeps the casing Azure
+  # returns, or every plan replaces it.
   external_dns_zone_resource_groups = {
-    for scope in distinct([
+    for scope in [
       for id in var.workload_identity.overrides.external_dns.dns_zone_ids :
       "/subscriptions/${provider::azurerm::parse_resource_id(id).subscription_id}/resourceGroups/${provider::azurerm::parse_resource_id(id).resource_group_name}"
       if local.workload_identity_enabled.external_dns
-    ]) : lower(scope) => scope
+    ] : lower(scope) => scope...
   }
 }
 
@@ -57,7 +58,7 @@ resource "azurerm_role_assignment" "workload_dns_zone" {
 
 resource "azurerm_role_assignment" "external_dns_zone_resource_group" {
   for_each                         = local.external_dns_zone_resource_groups
-  scope                            = each.value
+  scope                            = each.value[0]
   role_definition_name             = "Reader"
   principal_id                     = azurerm_user_assigned_identity.workload["external_dns"].principal_id
   principal_type                   = "ServicePrincipal"
