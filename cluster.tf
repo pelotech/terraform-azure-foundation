@@ -162,6 +162,11 @@ resource "azurerm_kubernetes_cluster_node_pool" "cni" {
   os_sku                = var.system_node_pool.os_sku
   fips_enabled          = var.system_node_pool.fips_enabled
   tags                  = var.tags
+
+  # AKS fills this in anyway; declaring it keeps every plan clean, as on the system pool.
+  upgrade_settings {
+    max_surge = "10%"
+  }
 }
 
 # A self-managed disk CSI driver authenticates with the kubelet identity from the nodes' azure.json
