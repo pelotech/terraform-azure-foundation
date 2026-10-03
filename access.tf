@@ -28,3 +28,11 @@ resource "azurerm_role_assignment" "access_admin_key_vault" {
   role_definition_name = "Key Vault Crypto Officer"
   principal_id         = each.value
 }
+
+# A plan refreshes the KMS key, which is a data-plane read the subscription Reader role does not cover.
+resource "azurerm_role_assignment" "access_reader_key_vault" {
+  for_each             = local.kms_enabled ? toset(var.access.reader_object_ids) : toset([])
+  scope                = azurerm_key_vault.kms[0].id
+  role_definition_name = "Key Vault Reader"
+  principal_id         = each.value
+}
