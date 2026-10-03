@@ -18,12 +18,15 @@ locals {
     }
   ]...)
 
-  # external-dns lists zones through their resource group, so it needs Reader there too.
-  external_dns_zone_resource_groups = toset([
-    for id in var.workload_identity.overrides.external_dns.dns_zone_ids :
-    lower("/subscriptions/${provider::azurerm::parse_resource_id(id).subscription_id}/resourceGroups/${provider::azurerm::parse_resource_id(id).resource_group_name}")
-    if local.workload_identity_enabled.external_dns
-  ])
+  # external-dns lists zones through their resource group, so it needs Reader there too. The key is
+  # lowercased for stability; the scope keeps the casing Azure returns, or every plan replaces it.
+  external_dns_zone_resource_groups = {
+    for scope in distinct([
+      for id in var.workload_identity.overrides.external_dns.dns_zone_ids :
+      "/subscriptions/${provider::azurerm::parse_resource_id(id).subscription_id}/resourceGroups/${provider::azurerm::parse_resource_id(id).resource_group_name}"
+      if local.workload_identity_enabled.external_dns
+    ]) : lower(scope) => scope
+  }
 }
 
 resource "azurerm_user_assigned_identity" "workload" {
