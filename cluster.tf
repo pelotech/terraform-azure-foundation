@@ -163,6 +163,9 @@ resource "azurerm_kubernetes_cluster_node_pool" "cni" {
   fips_enabled          = var.system_node_pool.fips_enabled
   tags                  = var.tags
 
+  # The provider refuses a vm_size or disk change without it; with it, the pool rotates through a temporary one.
+  temporary_name_for_rotation = "cnitmp"
+
   # AKS fills this in anyway; declaring it keeps every plan clean, as on the system pool.
   upgrade_settings {
     max_surge = "10%"
