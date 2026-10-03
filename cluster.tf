@@ -124,7 +124,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     disk_driver_enabled         = var.storage_drivers.disk
     file_driver_enabled         = var.storage_drivers.file
     snapshot_controller_enabled = var.storage_drivers.snapshot_controller
-    blob_driver_enabled         = var.blob_csi.enabled
+    blob_driver_enabled         = var.blob_csi.enabled && var.blob_csi.managed_driver
   }
 
   node_provisioning_profile {
@@ -162,6 +162,14 @@ resource "azurerm_kubernetes_cluster_node_pool" "cni" {
   os_sku                = var.system_node_pool.os_sku
   fips_enabled          = var.system_node_pool.fips_enabled
   tags                  = var.tags
+
+  # The provider refuses a vm_size or disk change without it; with it, the pool rotates through a temporary one.
+  temporary_name_for_rotation = "cnitmp"
+
+  # AKS fills this in anyway; declaring it keeps every plan clean, as on the system pool.
+  upgrade_settings {
+    max_surge = "10%"
+  }
 }
 
 # A self-managed disk CSI driver authenticates with the kubelet identity from the nodes' azure.json

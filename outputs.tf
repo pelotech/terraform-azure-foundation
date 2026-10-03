@@ -251,3 +251,8 @@ output "blob_csi_storage_account_name" {
   description = "Name of the blob CSI storage account, null when not created. Use it as the storageAccount of a PersistentVolume."
   value       = one(azurerm_storage_account.blob_csi[*].name)
 }
+
+output "blob_csi_container_names" {
+  description = "Names of the blob containers created in the blob CSI storage account, empty when none."
+  value       = sort(keys(azurerm_storage_container.blob_csi))
+}

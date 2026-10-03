@@ -57,6 +57,10 @@ run "dns_zones_grant_contributor_and_reader" {
     condition     = length(azurerm_role_assignment.external_dns_zone_resource_group) == 2 && contains(keys(azurerm_role_assignment.external_dns_zone_resource_group), "/subscriptions/00000000-0000-0000-0000-000000000002/resourcegroups/rg-dns-b")
     error_message = "external-dns gets Reader on each distinct zone resource group"
   }
+  assert {
+    condition     = azurerm_role_assignment.external_dns_zone_resource_group["/subscriptions/00000000-0000-0000-0000-000000000002/resourcegroups/rg-dns-b"].scope == "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-dns-b"
+    error_message = "the Reader scope keeps the casing Azure returns, under a lowercased key"
+  }
 }
 
 run "override_disables_one_identity" {

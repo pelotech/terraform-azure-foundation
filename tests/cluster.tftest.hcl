@@ -227,6 +227,10 @@ run "kube_ovn_creates_the_cni_pool" {
     error_message = "taint string and master label from the profile"
   }
   assert {
+    condition     = azurerm_kubernetes_cluster_node_pool.cni[0].temporary_name_for_rotation == "cnitmp" && azurerm_kubernetes_cluster_node_pool.cni[0].upgrade_settings[0].max_surge == "10%"
+    error_message = "rotation name, so a vm_size change plans; upgrade_settings declared, so the AKS default never shows as drift"
+  }
+  assert {
     condition     = tolist(azurerm_kubernetes_cluster_node_pool.cni[0].zones) == tolist(["1"]) && azurerm_kubernetes_cluster_node_pool.cni[0].os_sku == "AzureLinux3" && azurerm_kubernetes_cluster_node_pool.cni[0].max_pods == 110
     error_message = "zone pin and OS settings shared with the system pool"
   }

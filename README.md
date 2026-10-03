@@ -122,7 +122,7 @@ per target resource in the node subnet, with an existing VNet too.
 | Input                      | Roles on the cluster                                                   |
 | -------------------------- | ---------------------------------------------------------------------- |
 | `access.admin_object_ids`  | RBAC Cluster Admin, Cluster User Role, Key Vault Crypto Officer on the KMS vault |
-| `access.reader_object_ids` | RBAC Reader (no Secrets), Cluster User Role                            |
+| `access.reader_object_ids` | RBAC Reader (no Secrets), Cluster User Role, Key Vault Reader on the KMS vault |
 
 Grant extra roles against the `cluster_id` output.
 
@@ -173,11 +173,13 @@ disk CSI driver authenticates with that identity from the nodes' azure.json and 
 | `storage_drivers.disk`                 | Azure Disk CSI, with the default StorageClasses |
 | `storage_drivers.file`                 | Azure Files CSI                          |
 | `storage_drivers.snapshot_controller`  | CSI snapshot controller                  |
-| `blob_csi.enabled`                     | Azure Blob CSI, plus a storage account   |
+| `blob_csi.managed_driver`              | Azure Blob CSI                           |
 
 With `blob_csi.enabled`, the module creates a storage account named from the Owner tag plus the cluster name plus
-`csi`, lowercased, letters and digits only, cut to 24 characters. Set `blob_csi.storage_account_name` when that name is
-taken. Use the `blob_csi_storage_account_name` output as the `storageAccount` of a PersistentVolume.
+`csi`, lowercased, letters and digits only, cut to 24 characters, the kubelet grant on it and the private containers
+listed in `blob_csi.containers`. Set `blob_csi.storage_account_name` when that name is taken. The driver itself comes
+from GitOps; set `blob_csi.managed_driver = true` only to let AKS run it. Use the `blob_csi_storage_account_name`
+output as the `storageAccount` of a PersistentVolume.
 
 ## Recycle the CNI node pool
 
@@ -227,6 +229,7 @@ No modules.
 | [azurerm_resource_group.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/resource_group) | resource |
 | [azurerm_role_assignment.access](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.access_admin_key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
+| [azurerm_role_assignment.access_reader_key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.cluster_identity](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.deployer_key_vault](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.external_dns_zone_resource_group](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
@@ -235,6 +238,7 @@ No modules.
 | [azurerm_role_assignment.kubelet_node_resource_group](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.workload_dns_zone](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_storage_account.blob_csi](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
+| [azurerm_storage_container.blob_csi](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_container) | resource |
 | [azurerm_subnet.database](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |
 | [azurerm_subnet.nodes](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |
 | [azurerm_subnet_nat_gateway_association.nodes](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet_nat_gateway_association) | resource |
@@ -252,11 +256,11 @@ No modules.
 | <a name="input_location"></a> [location](#input\_location) | Azure region for every resource, for example usgovvirginia. | `string` | n/a | yes |
 | <a name="input_name"></a> [name](#input\_name) | Name of the AKS cluster. It is also the DNS prefix and the base of every generated resource name. | `string` | n/a | yes |
 | <a name="input_system_node_pool"></a> [system\_node\_pool](#input\_system\_node\_pool) | System node pool, the AKS default node pool. vm\_size is required, min\_count is at least 2, and the pool always carries the CriticalAddonsOnly taint. | <pre>object({<br/>    vm_size         = string<br/>    min_count       = optional(number, 2)<br/>    max_count       = optional(number, 6)<br/>    node_count      = optional(number, 3)<br/>    labels          = optional(map(string), {})<br/>    os_sku          = optional(string, "AzureLinux3")<br/>    fips_enabled    = optional(bool, false)<br/>    zones           = optional(list(string), ["1", "2", "3"])<br/>    max_pods        = optional(number, 110)<br/>    os_disk_size_gb = optional(number, 100)<br/>  })</pre> | n/a | yes |
-| <a name="input_access"></a> [access](#input\_access) | Entra object IDs with cluster access. admin\_object\_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader\_object\_ids get RBAC Reader. | <pre>object({<br/>    admin_object_ids  = optional(list(string), [])<br/>    reader_object_ids = optional(list(string), [])<br/>  })</pre> | `{}` | no |
+| <a name="input_access"></a> [access](#input\_access) | Entra object IDs with cluster access. admin\_object\_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader\_object\_ids get RBAC Reader and Key Vault Reader. | <pre>object({<br/>    admin_object_ids  = optional(list(string), [])<br/>    reader_object_ids = optional(list(string), [])<br/>  })</pre> | `{}` | no |
 | <a name="input_automatic_upgrade_channel"></a> [automatic\_upgrade\_channel](#input\_automatic\_upgrade\_channel) | AKS control plane upgrade channel: none, patch, rapid, node-image or stable. Each value follows the azurerm spelling. | `string` | `"none"` | no |
 | <a name="input_azure_cloud"></a> [azure\_cloud](#input\_azure\_cloud) | Azure cloud for the kubelogin --environment flag in kube\_exec: public or usgovernment. Set it to the same cloud as your azurerm provider. | `string` | `"public"` | no |
 | <a name="input_azure_cni"></a> [azure\_cni](#input\_azure\_cni) | Ignored unless cni = azure-cni. network\_plugin\_mode is overlay or node-subnet; network\_data\_plane is azure or cilium. | <pre>object({<br/>    network_plugin_mode = optional(string, "overlay")<br/>    network_data_plane  = optional(string, "azure")<br/>  })</pre> | `{}` | no |
-| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | AKS-managed blob CSI driver with a storage account for it, off by default. Set storage\_account\_name when the generated <Owner tag><name>csi name is taken. | <pre>object({<br/>    enabled                = optional(bool, false)<br/>    create_storage_account = optional(bool, true)<br/>    storage_account_name   = optional(string)<br/>  })</pre> | `{}` | no |
+| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed\_driver = true only to let AKS run the driver instead of GitOps. Set storage\_account\_name when the generated <Owner tag><name>csi name is taken. | <pre>object({<br/>    enabled                = optional(bool, false)<br/>    managed_driver         = optional(bool, false)<br/>    create_storage_account = optional(bool, true)<br/>    storage_account_name   = optional(string)<br/>    containers             = optional(list(string), [])<br/>  })</pre> | `{}` | no |
 | <a name="input_cluster_enabled_log_types"></a> [cluster\_enabled\_log\_types](#input\_cluster\_enabled\_log\_types) | AKS control plane log categories sent to cluster\_log\_analytics\_workspace\_id. Empty sends nothing. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_authorized_ip_ranges"></a> [cluster\_endpoint\_authorized\_ip\_ranges](#input\_cluster\_endpoint\_authorized\_ip\_ranges) | CIDRs allowed to reach the public API server. Empty allows all. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_public_access"></a> [cluster\_endpoint\_public\_access](#input\_cluster\_endpoint\_public\_access) | Makes the API server reachable from the internet. false creates a private cluster, which needs VNet connectivity to run cni-bootstrap. | `bool` | `true` | no |
@@ -288,6 +292,7 @@ No modules.
 
 | Name | Description |
 | ---- | ----------- |
+| <a name="output_blob_csi_container_names"></a> [blob\_csi\_container\_names](#output\_blob\_csi\_container\_names) | Names of the blob containers created in the blob CSI storage account, empty when none. |
 | <a name="output_blob_csi_storage_account_id"></a> [blob\_csi\_storage\_account\_id](#output\_blob\_csi\_storage\_account\_id) | Resource ID of the blob CSI storage account, null when not created. |
 | <a name="output_blob_csi_storage_account_name"></a> [blob\_csi\_storage\_account\_name](#output\_blob\_csi\_storage\_account\_name) | Name of the blob CSI storage account, null when not created. Use it as the storageAccount of a PersistentVolume. |
 | <a name="output_cert_manager_client_id"></a> [cert\_manager\_client\_id](#output\_cert\_manager\_client\_id) | Client ID of the cert-manager workload identity, null when disabled. |
