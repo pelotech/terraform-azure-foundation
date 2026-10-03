@@ -124,7 +124,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     disk_driver_enabled         = var.storage_drivers.disk
     file_driver_enabled         = var.storage_drivers.file
     snapshot_controller_enabled = var.storage_drivers.snapshot_controller
-    blob_driver_enabled         = var.blob_csi.enabled
+    blob_driver_enabled         = var.blob_csi.enabled && var.blob_csi.managed_driver
   }
 
   node_provisioning_profile {

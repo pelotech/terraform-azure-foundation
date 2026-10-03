@@ -16,6 +16,13 @@ resource "azurerm_storage_account" "blob_csi" {
   tags                            = var.tags
 }
 
+resource "azurerm_storage_container" "blob_csi" {
+  for_each              = local.create_blob_storage_account ? toset(var.blob_csi.containers) : toset([])
+  name                  = each.value
+  storage_account_id    = azurerm_storage_account.blob_csi[0].id
+  container_access_type = "private"
+}
+
 resource "azurerm_role_assignment" "kubelet_blob_storage_account" {
   count                            = var.create_cluster && local.create_blob_storage_account ? 1 : 0
   scope                            = azurerm_storage_account.blob_csi[0].id

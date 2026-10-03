@@ -440,15 +440,22 @@ variable "storage_drivers" {
 variable "blob_csi" {
   type = object({
     enabled                = optional(bool, false)
+    managed_driver         = optional(bool, false)
     create_storage_account = optional(bool, true)
     storage_account_name   = optional(string)
+    containers             = optional(list(string), [])
   })
   default     = {}
   nullable    = false
-  description = "AKS-managed blob CSI driver with a storage account for it, off by default. Set storage_account_name when the generated <Owner tag><name>csi name is taken."
+  description = "Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed_driver = true only to let AKS run the driver instead of GitOps. Set storage_account_name when the generated <Owner tag><name>csi name is taken."
 
   validation {
     condition     = var.blob_csi.storage_account_name == null ? true : can(regex("^[a-z0-9]{3,24}$", var.blob_csi.storage_account_name))
     error_message = "blob_csi.storage_account_name must be 3-24 lowercase letters and digits."
+  }
+
+  validation {
+    condition     = alltrue([for name in var.blob_csi.containers : can(regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", name))])
+    error_message = "blob_csi.containers names must be 3-63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
   }
 }
