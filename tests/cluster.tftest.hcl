@@ -280,4 +280,16 @@ run "storage_drivers_can_be_enabled" {
     condition     = azurerm_kubernetes_cluster.this[0].storage_profile[0].disk_driver_enabled && azurerm_kubernetes_cluster.this[0].storage_profile[0].file_driver_enabled && azurerm_kubernetes_cluster.this[0].storage_profile[0].snapshot_controller_enabled
     error_message = "storage_drivers must turn the AKS-managed drivers on"
   }
+  assert {
+    condition     = length(azurerm_role_assignment.kubelet_node_resource_group) == 0
+    error_message = "with the managed disk driver on, the kubelet identity needs no grant on the node resource group"
+  }
+}
+
+run "self_managed_disk_csi_gets_kubelet_contributor" {
+  command = plan
+  assert {
+    condition     = length(azurerm_role_assignment.kubelet_node_resource_group) == 1 && azurerm_role_assignment.kubelet_node_resource_group[0].role_definition_name == "Contributor"
+    error_message = "with the managed disk driver off, the kubelet identity gets Contributor on the node resource group for a self-managed CSI driver"
+  }
 }

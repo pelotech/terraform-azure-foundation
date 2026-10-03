@@ -165,6 +165,9 @@ Every AKS-managed CSI driver is off by default. Storage then comes from charts y
 upstream Azure Disk CSI driver with external-snapshotter, or Rook Ceph. Turn a managed driver on to let AKS run and
 upgrade it with the cluster version.
 
+With the managed disk driver off, the kubelet identity gets Contributor on the node resource group. A self-managed
+disk CSI driver authenticates with that identity from the nodes' azure.json and creates its disks there.
+
 | Input                                  | Driver                                   |
 | -------------------------------------- | ---------------------------------------- |
 | `storage_drivers.disk`                 | Azure Disk CSI, with the default StorageClasses |
@@ -229,6 +232,7 @@ No modules.
 | [azurerm_role_assignment.external_dns_zone_resource_group](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.karpenter](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.kubelet_blob_storage_account](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
+| [azurerm_role_assignment.kubelet_node_resource_group](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_role_assignment.workload_dns_zone](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/role_assignment) | resource |
 | [azurerm_storage_account.blob_csi](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account) | resource |
 | [azurerm_subnet.database](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |

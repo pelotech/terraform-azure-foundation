@@ -164,6 +164,17 @@ resource "azurerm_kubernetes_cluster_node_pool" "cni" {
   tags                  = var.tags
 }
 
+# A self-managed disk CSI driver authenticates with the kubelet identity from the nodes' azure.json
+# and needs Contributor where the disks live. AKS grants this itself only for its managed driver.
+resource "azurerm_role_assignment" "kubelet_node_resource_group" {
+  count                            = var.create_cluster && !var.storage_drivers.disk ? 1 : 0
+  scope                            = azurerm_kubernetes_cluster.this[0].node_resource_group_id
+  role_definition_name             = "Contributor"
+  principal_id                     = azurerm_user_assigned_identity.kubelet[0].principal_id
+  principal_type                   = "ServicePrincipal"
+  skip_service_principal_aad_check = true
+}
+
 resource "azurerm_monitor_diagnostic_setting" "cluster" {
   count                      = var.create_cluster && length(var.cluster_enabled_log_types) > 0 ? 1 : 0
   name                       = "${var.name}-control-plane"
