@@ -14,7 +14,9 @@ resource "azurerm_storage_account" "blob_csi" {
   https_traffic_only_enabled      = true
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
-  tags                            = var.tags
+  # Account keys stay on: CloudNativePG backups authenticate with an account key connection string until EnterpriseDB/barman#885 ships.
+  shared_access_key_enabled = true
+  tags                      = var.tags
 
   # The block is always set: the provider keeps the account's current rules when it is absent, so Public would never reopen an account.
   network_rules {
