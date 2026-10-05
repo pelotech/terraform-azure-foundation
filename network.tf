@@ -29,7 +29,7 @@ resource "azurerm_subnet" "nodes" {
   default_outbound_access_enabled = false
 
   dynamic "service_endpoint" {
-    for_each = toset(var.vnet.service_endpoints)
+    for_each = toset(concat(var.vnet.service_endpoints, local.blob_csi_node_subnet_only ? ["Microsoft.Storage"] : []))
     content {
       service = service_endpoint.value
     }

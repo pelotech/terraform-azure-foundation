@@ -1,5 +1,6 @@
 locals {
   create_blob_storage_account = var.blob_csi.enabled && var.blob_csi.create_storage_account
+  blob_csi_node_subnet_only   = local.create_blob_storage_account && var.blob_csi.network_access == "NodeSubnet"
 }
 
 resource "azurerm_storage_account" "blob_csi" {
@@ -14,6 +15,16 @@ resource "azurerm_storage_account" "blob_csi" {
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
   tags                            = var.tags
+
+  # The kubelet and the pods reach the account from the node subnet. Resource Manager calls, which the CI identities use, are not network rules traffic.
+  dynamic "network_rules" {
+    for_each = local.blob_csi_node_subnet_only ? [1] : []
+    content {
+      default_action             = "Deny"
+      bypass                     = ["AzureServices"]
+      virtual_network_subnet_ids = [local.node_subnet_id]
+    }
+  }
 }
 
 resource "azurerm_storage_container" "blob_csi" {

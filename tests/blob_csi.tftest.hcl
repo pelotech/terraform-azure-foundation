@@ -29,6 +29,45 @@ run "enabled_creates_a_locked_down_account" {
     condition     = length(azurerm_role_assignment.kubelet_blob_storage_account) == 1 && azurerm_role_assignment.kubelet_blob_storage_account[0].role_definition_name == "Storage Blob Data Contributor"
     error_message = "the kubelet identity gets Storage Blob Data Contributor on the account"
   }
+  assert {
+    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 1 && azurerm_storage_account.blob_csi[0].network_rules[0].default_action == "Deny" && azurerm_storage_account.blob_csi[0].network_rules[0].bypass == toset(["AzureServices"])
+    error_message = "by default the account denies every network but the node subnet, with Azure services bypassing"
+  }
+  assert {
+    condition     = contains([for e in azurerm_subnet.nodes[0].service_endpoint : e.service], "Microsoft.Storage")
+    error_message = "the node subnet gets the Microsoft.Storage service endpoint so the nodes pass the network rules"
+  }
+}
+
+run "public_network_access_drops_the_rules_and_the_endpoint" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true, network_access = "Public" }
+  }
+  assert {
+    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 0
+    error_message = "Public leaves the account without network rules"
+  }
+  assert {
+    condition     = length(azurerm_subnet.nodes[0].service_endpoint) == 0
+    error_message = "no blob account restriction means no storage service endpoint on the subnet"
+  }
+}
+
+run "no_storage_endpoint_without_a_blob_account" {
+  command = plan
+  assert {
+    condition     = length(azurerm_subnet.nodes[0].service_endpoint) == 0
+    error_message = "blob_csi off adds nothing to the node subnet"
+  }
+}
+
+run "bad_network_access_is_rejected" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true, network_access = "Private" }
+  }
+  expect_failures = [var.blob_csi]
 }
 
 run "uppercase_owner_is_lowercased" {
