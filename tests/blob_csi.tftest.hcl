@@ -39,6 +39,28 @@ run "enabled_creates_a_locked_down_account" {
   }
 }
 
+run "account_keys_are_off_by_default" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true }
+  }
+  assert {
+    condition     = azurerm_storage_account.blob_csi[0].shared_access_key_enabled == false
+    error_message = "the account rejects key and connection string authentication by default"
+  }
+}
+
+run "account_keys_can_be_turned_on" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true, shared_access_key_enabled = true }
+  }
+  assert {
+    condition     = azurerm_storage_account.blob_csi[0].shared_access_key_enabled == true
+    error_message = "shared_access_key_enabled = true keeps the account keys usable"
+  }
+}
+
 run "extra_subnets_join_the_allow_list" {
   command = plan
   variables {
@@ -50,14 +72,14 @@ run "extra_subnets_join_the_allow_list" {
   }
 }
 
-run "public_network_access_drops_the_rules_and_the_endpoint" {
+run "public_network_access_allows_every_network_and_drops_the_endpoint" {
   command = plan
   variables {
     blob_csi = { enabled = true, network_access = "Public" }
   }
   assert {
-    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 0
-    error_message = "Public leaves the account without network rules"
+    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 1 && azurerm_storage_account.blob_csi[0].network_rules[0].default_action == "Allow" && length(azurerm_storage_account.blob_csi[0].network_rules[0].virtual_network_subnet_ids) == 0
+    error_message = "Public sets an explicit Allow with no subnets, so an account that was restricted reopens"
   }
   assert {
     condition     = length(azurerm_subnet.nodes[0].service_endpoint) == 0

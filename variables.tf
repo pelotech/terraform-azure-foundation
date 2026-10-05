@@ -89,7 +89,7 @@ variable "existing_vnet" {
     outbound_type  = optional(string, "loadBalancer")
   })
   default     = null
-  description = "Existing VNet and node subnet to use instead of creating them. Set outbound_type to how that subnet reaches the internet: loadBalancer, userAssignedNATGateway or userDefinedRouting."
+  description = "Use an existing VNet and node subnet. The module then creates none. Set outbound_type to the egress of that subnet: loadBalancer, userAssignedNATGateway or userDefinedRouting."
 
   validation {
     condition     = var.existing_vnet == null ? true : contains(["loadBalancer", "userAssignedNATGateway", "userDefinedRouting"], var.existing_vnet.outbound_type)
@@ -105,7 +105,7 @@ variable "nat_gateway" {
   })
   default     = {}
   nullable    = false
-  description = "NAT Gateway for node egress on the subnet the module creates. enabled defaults to true when the module creates the VNet, and cannot be true with existing_vnet."
+  description = "NAT Gateway for node egress. Default: on when the module creates the VNet. It must be off with existing_vnet."
 
   validation {
     condition     = var.nat_gateway.enabled != true || var.existing_vnet == null
@@ -129,13 +129,13 @@ variable "private_endpoints" {
   }))
   default     = {}
   nullable    = false
-  description = "Private endpoints in the node subnet, one per target resource, keyed by a name you choose. Example subresource_names: [\"blob\"], [\"vault\"], [\"registry\"]."
+  description = "Private endpoints in the node subnet, one for each target resource. You select the key names. Example subresource_names: [\"blob\"], [\"vault\"], [\"registry\"]."
 }
 
 variable "cni" {
   type        = string
   default     = "cilium"
-  description = "CNI to run: cilium, kube-ovn or azure-cni. cilium and kube-ovn set network_plugin none and are installed by cni-bootstrap; kube-ovn also creates the CNI node pool."
+  description = "CNI to run: cilium, kube-ovn or azure-cni. For cilium and kube-ovn, the module sets network_plugin none and cni-bootstrap installs the CNI. kube-ovn also creates the CNI node pool."
 
   validation {
     condition     = contains(keys(local.cni_profiles), var.cni)
@@ -280,7 +280,7 @@ variable "kms" {
   })
   default     = {}
   nullable    = false
-  description = "Encrypts etcd secrets with a customer-managed key in a Key Vault the module creates. Destroying keeps the vault name reserved for 90 days; set key_vault_name to create a new one."
+  description = "Encrypts etcd secrets with a customer-managed key. The module creates the Key Vault. After a destroy, Azure reserves the vault name for 90 days. Set key_vault_name to create a vault with a new name."
 
   validation {
     condition     = contains(["Public", "Private"], var.kms.key_vault_network_access)
@@ -384,7 +384,7 @@ variable "access" {
   })
   default     = {}
   nullable    = false
-  description = "Entra object IDs with cluster access. admin_object_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader_object_ids get RBAC Reader, Secrets in kube-system and Key Vault Reader. The principal that applies must be in admin_object_ids: it creates the KMS key."
+  description = "Entra object IDs with cluster access. The README section \"Access\" lists the roles. Put the principal that applies the module in admin_object_ids, because it creates the KMS key."
 
   validation {
     condition     = length(distinct(concat(var.access.admin_object_ids, var.access.reader_object_ids))) == length(concat(var.access.admin_object_ids, var.access.reader_object_ids))
@@ -408,7 +408,7 @@ variable "workload_identity" {
   })
   default     = {}
   nullable    = false
-  description = "Workload identities for external_dns and cert_manager. Use overrides.<identity>.enabled to change one, and dns_zone_ids to grant it DNS Zone Contributor on those zones."
+  description = "Workload identities for external_dns and cert_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns_zone_ids to grant it DNS Zone Contributor on those zones."
 }
 
 variable "karpenter" {
@@ -418,7 +418,7 @@ variable "karpenter" {
   })
   default     = {}
   nullable    = false
-  description = "Karpenter mode. self-hosted creates the controller identity and its role assignments; node-auto-provisioning turns on AKS-managed Karpenter; enabled = false turns both off."
+  description = "Karpenter mode. self-hosted creates the controller identity and its role assignments. node-auto-provisioning turns on the Karpenter that AKS manages. enabled = false turns both off."
 
   validation {
     condition     = contains(["self-hosted", "node-auto-provisioning"], var.karpenter.mode)
@@ -434,22 +434,23 @@ variable "storage_drivers" {
   })
   default     = {}
   nullable    = false
-  description = "AKS-managed CSI drivers and snapshot controller. All off by default, so storage comes from charts you pin yourself; turn one on to let AKS run and upgrade it."
+  description = "AKS-managed CSI drivers and snapshot controller. Default: all off, and you deploy the charts yourself. Turn one on if AKS must run and upgrade it."
 }
 
 variable "blob_csi" {
   type = object({
-    enabled                = optional(bool, false)
-    managed_driver         = optional(bool, false)
-    create_storage_account = optional(bool, true)
-    storage_account_name   = optional(string)
-    containers             = optional(list(string), [])
-    network_access         = optional(string, "NodeSubnet")
-    extra_subnet_ids       = optional(list(string), [])
+    enabled                   = optional(bool, false)
+    managed_driver            = optional(bool, false)
+    create_storage_account    = optional(bool, true)
+    storage_account_name      = optional(string)
+    containers                = optional(list(string), [])
+    network_access            = optional(string, "NodeSubnet")
+    extra_subnet_ids          = optional(list(string), [])
+    shared_access_key_enabled = optional(bool, false)
   })
   default     = {}
   nullable    = false
-  description = "Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed_driver = true only to let AKS run the driver instead of GitOps. Set storage_account_name when the generated <Owner tag><name>csi name is taken. network_access NodeSubnet (default) answers only the node subnet, through a Microsoft.Storage service endpoint the module adds to that subnet; Public answers every network. With existing_vnet, NodeSubnet expects the node subnet to carry that service endpoint already. extra_subnet_ids adds other subnets to the allow list, such as the node subnet of a cluster that restores from these backups; each needs its own Microsoft.Storage service endpoint."
+  description = "Blob storage for the blob CSI driver. Default: off. The module creates the storage account, the kubelet grant and the private containers. The README section \"Blob storage\" explains each field."
 
   validation {
     condition     = contains(["NodeSubnet", "Public"], var.blob_csi.network_access)

@@ -11,7 +11,7 @@ This module creates an AKS cluster that runs a CNI you install yourself. It crea
 - the Karpenter controller identity
 - optional AKS-managed CSI drivers, all off by default
 
-Its outputs feed the helm provider and the cni-bootstrap module. The section "Install the CNI" lists the wiring.
+The helm provider and the cni-bootstrap module use its outputs. See "Install the CNI".
 
 ## Prerequisites
 
@@ -56,7 +56,7 @@ provider "helm" {
 
 ## Install the CNI
 
-Apply cni-bootstrap after this module. Every input it needs comes from this module's outputs:
+Apply cni-bootstrap after this module. This module's outputs supply all its inputs:
 
 ```hcl
 module "cni" {
@@ -74,8 +74,9 @@ module "cni" {
 }
 ```
 
-For Cilium, set `cni = "cilium"` with the same inputs. `cloud = "azure"` keeps kube-proxy on and turns on the AKS
-bring-your-own-CNI mode. The apply host needs `kubectl` and `kubelogin` for the kube-ovn node poll.
+- For Cilium, set `cni = "cilium"` with the same inputs.
+- `cloud = "azure"` keeps kube-proxy on and sets the AKS bring-your-own-CNI mode.
+- For kube-ovn, the apply host must have `kubectl` and `kubelogin`.
 
 | Output                   | cni-bootstrap input       |
 | ------------------------ | ------------------------- |
@@ -97,7 +98,7 @@ bring-your-own-CNI mode. The apply host needs `kubectl` and `kubelogin` for the 
 | `kube-ovn`         | `none`         | 1 node, label `kube-ovn/role=master`, tainted     | `kube-ovn-v2`       |
 | `azure-cni`        | `azure`        | none                                              | not used            |
 
-`azure-cni` is the Microsoft-managed CNI. Configure it with `azure_cni`: overlay or node-subnet mode, azure or cilium data plane.
+`azure-cni` is the CNI that Microsoft manages. Use `azure_cni` to set its mode (overlay or node subnet) and its data plane (azure or cilium).
 
 ## AKS constraints
 
@@ -114,8 +115,8 @@ bring-your-own-CNI mode. The apply host needs `kubectl` and `kubelogin` for the 
 | Created VNet, load balancer | `nat_gateway = { enabled = false }`                        | `loadBalancer`           |
 | Existing VNet              | `existing_vnet = { vnet_id, node_subnet_id, outbound_type }` | your `outbound_type`     |
 
-`nat_gateway_public_ips` lists the gateway addresses for allow lists. `private_endpoints` creates one private endpoint
-per target resource in the node subnet, with an existing VNet too.
+- The `nat_gateway_public_ips` output lists the gateway addresses. Use them in allow lists.
+- `private_endpoints` creates one private endpoint in the node subnet for each target resource. This also works with an existing VNet.
 
 ## Access
 
@@ -124,10 +125,13 @@ per target resource in the node subnet, with an existing VNet too.
 | `access.admin_object_ids`  | RBAC Cluster Admin, Cluster User Role, Key Vault Crypto Officer on the KMS vault |
 | `access.reader_object_ids` | RBAC Reader, Secrets in `kube-system` (so a plan sees Helm releases), Cluster User Role, Key Vault Reader on the KMS vault |
 
-Grant extra roles against the `cluster_id` output. The principal that applies the module must be in `admin_object_ids`: creating the KMS key needs Crypto Officer, and the module grants no role to whoever happens to run it.
+- To grant more roles, use the `cluster_id` output as the scope.
+- Put the principal that applies the module in `admin_object_ids`. It creates the KMS key, and that needs Crypto Officer. The module gives no role to the caller.
 
-By default, anyone on the internet can reach the API server. To restrict it, set `cluster_endpoint_authorized_ip_ranges`.
-For a private cluster, set `cluster_endpoint_public_access = false`.
+By default, the API server accepts connections from the internet.
+
+- To accept only some addresses, set `cluster_endpoint_authorized_ip_ranges`.
+- For a private cluster, set `cluster_endpoint_public_access = false`.
 
 ## Workload identity
 
@@ -138,9 +142,12 @@ The module uses Microsoft Entra Workload ID for every identity. For each control
 
 Without the label, the pod gets no token.
 
-Azure has no wildcard DNS scope. List each zone in `dns_zone_ids`. The module grants DNS Zone Contributor on each zone.
-For external-dns, it also grants Reader on the zone's resource group. To assign roles yourself, leave `dns_zone_ids`
-empty and use `<identity>_principal_id`.
+DNS grants:
+
+- Azure has no wildcard DNS scope. List each zone in `dns_zone_ids`.
+- The module grants DNS Zone Contributor on each zone.
+- For external-dns, the module also grants Reader on the resource group of the zone.
+- To assign the roles yourself, leave `dns_zone_ids` empty and use the `<identity>_principal_id` output.
 
 ## Karpenter
 
@@ -154,19 +161,18 @@ With `karpenter.mode = "self-hosted"` (default), the module creates the controll
 | Network Contributor         | node subnet         |
 | Managed Identity Operator   | kubelet identity    |
 
-The GitOps layer deploys the chart, the node classes and the `karpenter/karpenter` service account. It needs these
+The GitOps layer deploys the chart, the node classes and the `karpenter/karpenter` service account. It uses these
 outputs: `karpenter_client_id`, `node_resource_group_name`, `node_subnet_id` and `kubelet_identity_client_id`.
 
 Set `karpenter.mode = "node-auto-provisioning"` to use AKS node auto provisioning instead.
 
 ## Storage drivers
 
-Every AKS-managed CSI driver is off by default. Storage then comes from charts you deploy and pin yourself, such as the
-upstream Azure Disk CSI driver with external-snapshotter, or Rook Ceph. Turn a managed driver on to let AKS run and
-upgrade it with the cluster version.
+All AKS-managed CSI drivers are off by default.
 
-With the managed disk driver off, the kubelet identity gets Contributor on the node resource group. A self-managed
-disk CSI driver authenticates with that identity from the nodes' azure.json and creates its disks there.
+- With a driver off, you deploy and pin the chart yourself. Examples: the upstream Azure Disk CSI driver with external-snapshotter, or Rook Ceph.
+- With a driver on, AKS runs it and upgrades it with the cluster version.
+- With the managed disk driver off, the module grants Contributor on the node resource group to the kubelet identity. Your disk CSI driver uses that identity to create its disks there.
 
 | Input                                  | Driver                                   |
 | -------------------------------------- | ---------------------------------------- |
@@ -175,11 +181,34 @@ disk CSI driver authenticates with that identity from the nodes' azure.json and 
 | `storage_drivers.snapshot_controller`  | CSI snapshot controller                  |
 | `blob_csi.managed_driver`              | Azure Blob CSI                           |
 
-With `blob_csi.enabled`, the module creates a storage account named from the Owner tag plus the cluster name plus
-`csi`, lowercased, letters and digits only, cut to 24 characters, the kubelet grant on it and the private containers
-listed in `blob_csi.containers`. Set `blob_csi.storage_account_name` when that name is taken. The driver itself comes
-from GitOps; set `blob_csi.managed_driver = true` only to let AKS run it. The account answers only the node subnet by default (`blob_csi.network_access = "NodeSubnet"`): the module adds a `Microsoft.Storage` service endpoint to that subnet and a deny-by-default network rule, so the kubelet and the pods reach it and the internet does not. Resource Manager calls, which Terraform and CI use, are not affected. Set `"Public"` to answer every network, or list other subnets in `blob_csi.extra_subnet_ids`, for example the node subnet of a cluster that restores from these backups. Use the `blob_csi_storage_account_name`
-output as the `storageAccount` of a PersistentVolume.
+### Blob storage
+
+Set `blob_csi.enabled = true`. The module then creates:
+
+- A storage account.
+- A `Storage Blob Data Contributor` grant for the kubelet identity.
+- One private container for each name in `blob_csi.containers`.
+
+GitOps installs the driver. The kubelet identity mounts the containers, so no key is necessary.
+
+| Field                       | Default        | Use                                                                                                                        |
+|-----------------------------|----------------|----------------------------------------------------------------------------------------------------------------------------|
+| `storage_account_name`      | generated      | Set it when the generated name is taken. The generated name is the Owner tag, the cluster name and `csi`: lowercase letters and digits, 24 characters maximum. |
+| `managed_driver`            | `false`        | Set `true` only if AKS must run the driver.                                                                                 |
+| `network_access`            | `"NodeSubnet"` | `"NodeSubnet"` accepts requests from the node subnet only. `"Public"` accepts requests from all networks.                   |
+| `extra_subnet_ids`          | `[]`           | More subnets to accept with `"NodeSubnet"`. Example: the node subnet of a cluster that restores these backups.              |
+| `shared_access_key_enabled` | `false`        | Set `true` only for a client that cannot use Entra and needs an account key or a connection string.                         |
+
+Network access:
+
+- With `"NodeSubnet"`, the module adds a `Microsoft.Storage` service endpoint to the node subnet.
+- With `existing_vnet`, add that service endpoint to the node subnet yourself.
+- Each subnet in `extra_subnet_ids` must have its own `Microsoft.Storage` service endpoint.
+- `"NodeSubnet"` also blocks the Azure portal, because the portal reads containers from your IP address.
+- Terraform and CI use Resource Manager calls. Network rules do not apply to them.
+- `"Public"` does not permit anonymous access. All requests must have an Entra role, a key or a SAS token.
+
+Use the `blob_csi_storage_account_name` output as the `storageAccount` of a PersistentVolume.
 
 ## Recycle the CNI node pool
 
@@ -191,7 +220,7 @@ Keep `node_os_upgrade_channel = "None"` so AKS does not reimage this pool.
 
 ## Known issues
 
-On a first apply, Key Vault role grants can take minutes to apply. If the apply fails with 403, run it again.
+On a first apply, Key Vault role grants can take some minutes to become active. If the apply fails with 403, run it again.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -257,37 +286,37 @@ No modules.
 | <a name="input_location"></a> [location](#input\_location) | Azure region for every resource, for example usgovvirginia. | `string` | n/a | yes |
 | <a name="input_name"></a> [name](#input\_name) | Name of the AKS cluster. It is also the DNS prefix and the base of every generated resource name. | `string` | n/a | yes |
 | <a name="input_system_node_pool"></a> [system\_node\_pool](#input\_system\_node\_pool) | System node pool, the AKS default node pool. vm\_size is required, min\_count is at least 2, and the pool always carries the CriticalAddonsOnly taint. | <pre>object({<br/>    vm_size         = string<br/>    min_count       = optional(number, 2)<br/>    max_count       = optional(number, 6)<br/>    node_count      = optional(number, 3)<br/>    labels          = optional(map(string), {})<br/>    os_sku          = optional(string, "AzureLinux3")<br/>    fips_enabled    = optional(bool, false)<br/>    zones           = optional(list(string), ["1", "2", "3"])<br/>    max_pods        = optional(number, 110)<br/>    os_disk_size_gb = optional(number, 100)<br/>  })</pre> | n/a | yes |
-| <a name="input_access"></a> [access](#input\_access) | Entra object IDs with cluster access. admin\_object\_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader\_object\_ids get RBAC Reader, Secrets in kube-system and Key Vault Reader. The principal that applies must be in admin\_object\_ids: it creates the KMS key. | <pre>object({<br/>    admin_object_ids  = optional(list(string), [])<br/>    reader_object_ids = optional(list(string), [])<br/>  })</pre> | `{}` | no |
+| <a name="input_access"></a> [access](#input\_access) | Entra object IDs with cluster access. The README section "Access" lists the roles. Put the principal that applies the module in admin\_object\_ids, because it creates the KMS key. | <pre>object({<br/>    admin_object_ids  = optional(list(string), [])<br/>    reader_object_ids = optional(list(string), [])<br/>  })</pre> | `{}` | no |
 | <a name="input_automatic_upgrade_channel"></a> [automatic\_upgrade\_channel](#input\_automatic\_upgrade\_channel) | AKS control plane upgrade channel: none, patch, rapid, node-image or stable. Each value follows the azurerm spelling. | `string` | `"none"` | no |
 | <a name="input_azure_cloud"></a> [azure\_cloud](#input\_azure\_cloud) | Azure cloud for the kubelogin --environment flag in kube\_exec: public or usgovernment. Set it to the same cloud as your azurerm provider. | `string` | `"public"` | no |
 | <a name="input_azure_cni"></a> [azure\_cni](#input\_azure\_cni) | Ignored unless cni = azure-cni. network\_plugin\_mode is overlay or node-subnet; network\_data\_plane is azure or cilium. | <pre>object({<br/>    network_plugin_mode = optional(string, "overlay")<br/>    network_data_plane  = optional(string, "azure")<br/>  })</pre> | `{}` | no |
-| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed\_driver = true only to let AKS run the driver instead of GitOps. Set storage\_account\_name when the generated <Owner tag><name>csi name is taken. network\_access NodeSubnet (default) answers only the node subnet, through a Microsoft.Storage service endpoint the module adds to that subnet; Public answers every network. With existing\_vnet, NodeSubnet expects the node subnet to carry that service endpoint already. extra\_subnet\_ids adds other subnets to the allow list, such as the node subnet of a cluster that restores from these backups; each needs its own Microsoft.Storage service endpoint. | <pre>object({<br/>    enabled                = optional(bool, false)<br/>    managed_driver         = optional(bool, false)<br/>    create_storage_account = optional(bool, true)<br/>    storage_account_name   = optional(string)<br/>    containers             = optional(list(string), [])<br/>    network_access         = optional(string, "NodeSubnet")<br/>    extra_subnet_ids       = optional(list(string), [])<br/>  })</pre> | `{}` | no |
+| <a name="input_blob_csi"></a> [blob\_csi](#input\_blob\_csi) | Blob storage for the blob CSI driver. Default: off. The module creates the storage account, the kubelet grant and the private containers. The README section "Blob storage" explains each field. | <pre>object({<br/>    enabled                   = optional(bool, false)<br/>    managed_driver            = optional(bool, false)<br/>    create_storage_account    = optional(bool, true)<br/>    storage_account_name      = optional(string)<br/>    containers                = optional(list(string), [])<br/>    network_access            = optional(string, "NodeSubnet")<br/>    extra_subnet_ids          = optional(list(string), [])<br/>    shared_access_key_enabled = optional(bool, false)<br/>  })</pre> | `{}` | no |
 | <a name="input_cluster_enabled_log_types"></a> [cluster\_enabled\_log\_types](#input\_cluster\_enabled\_log\_types) | AKS control plane log categories sent to cluster\_log\_analytics\_workspace\_id. Empty sends nothing. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_authorized_ip_ranges"></a> [cluster\_endpoint\_authorized\_ip\_ranges](#input\_cluster\_endpoint\_authorized\_ip\_ranges) | CIDRs allowed to reach the public API server. Empty allows all. | `list(string)` | `[]` | no |
 | <a name="input_cluster_endpoint_public_access"></a> [cluster\_endpoint\_public\_access](#input\_cluster\_endpoint\_public\_access) | Makes the API server reachable from the internet. false creates a private cluster, which needs VNet connectivity to run cni-bootstrap. | `bool` | `true` | no |
 | <a name="input_cluster_log_analytics_workspace_id"></a> [cluster\_log\_analytics\_workspace\_id](#input\_cluster\_log\_analytics\_workspace\_id) | ID of an existing Log Analytics workspace for cluster\_enabled\_log\_types. Required when that list is not empty. | `string` | `null` | no |
 | <a name="input_cluster_version"></a> [cluster\_version](#input\_cluster\_version) | Kubernetes version in MAJOR.MINOR form. AKS picks the patch version. | `string` | `"1.35"` | no |
-| <a name="input_cni"></a> [cni](#input\_cni) | CNI to run: cilium, kube-ovn or azure-cni. cilium and kube-ovn set network\_plugin none and are installed by cni-bootstrap; kube-ovn also creates the CNI node pool. | `string` | `"cilium"` | no |
+| <a name="input_cni"></a> [cni](#input\_cni) | CNI to run: cilium, kube-ovn or azure-cni. For cilium and kube-ovn, the module sets network\_plugin none and cni-bootstrap installs the CNI. kube-ovn also creates the CNI node pool. | `string` | `"cilium"` | no |
 | <a name="input_cni_node_pool"></a> [cni\_node\_pool](#input\_cni\_node\_pool) | Dedicated CNI node pool, created for kube-ovn. Set kubernetes\_version when cni = kube-ovn; set enabled = false, then true, to recycle the pool. | <pre>object({<br/>    enabled            = optional(bool)<br/>    kubernetes_version = optional(string)<br/>    vm_size            = optional(string)<br/>    zones              = optional(list(string))<br/>    node_count         = optional(number, 1)<br/>  })</pre> | `{}` | no |
 | <a name="input_create_cluster"></a> [create\_cluster](#input\_create\_cluster) | Creates the AKS cluster and every resource that depends on it. The VNet, NAT Gateway, private endpoints and storage account have their own switches. | `bool` | `true` | no |
 | <a name="input_create_resource_group"></a> [create\_resource\_group](#input\_create\_resource\_group) | Creates the resource group. Set false to use an existing group named resource\_group\_name. | `bool` | `true` | no |
 | <a name="input_dns_service_ip"></a> [dns\_service\_ip](#input\_dns\_service\_ip) | Cluster DNS service IP inside service\_cidr. null uses the tenth address. | `string` | `null` | no |
-| <a name="input_existing_vnet"></a> [existing\_vnet](#input\_existing\_vnet) | Existing VNet and node subnet to use instead of creating them. Set outbound\_type to how that subnet reaches the internet: loadBalancer, userAssignedNATGateway or userDefinedRouting. | <pre>object({<br/>    vnet_id        = string<br/>    node_subnet_id = string<br/>    outbound_type  = optional(string, "loadBalancer")<br/>  })</pre> | `null` | no |
-| <a name="input_karpenter"></a> [karpenter](#input\_karpenter) | Karpenter mode. self-hosted creates the controller identity and its role assignments; node-auto-provisioning turns on AKS-managed Karpenter; enabled = false turns both off. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    mode    = optional(string, "self-hosted")<br/>  })</pre> | `{}` | no |
-| <a name="input_kms"></a> [kms](#input\_kms) | Encrypts etcd secrets with a customer-managed key in a Key Vault the module creates. Destroying keeps the vault name reserved for 90 days; set key\_vault\_name to create a new one. | <pre>object({<br/>    enabled                  = optional(bool, true)<br/>    key_vault_name           = optional(string)<br/>    key_vault_network_access = optional(string, "Public")<br/>  })</pre> | `{}` | no |
+| <a name="input_existing_vnet"></a> [existing\_vnet](#input\_existing\_vnet) | Use an existing VNet and node subnet. The module then creates none. Set outbound\_type to the egress of that subnet: loadBalancer, userAssignedNATGateway or userDefinedRouting. | <pre>object({<br/>    vnet_id        = string<br/>    node_subnet_id = string<br/>    outbound_type  = optional(string, "loadBalancer")<br/>  })</pre> | `null` | no |
+| <a name="input_karpenter"></a> [karpenter](#input\_karpenter) | Karpenter mode. self-hosted creates the controller identity and its role assignments. node-auto-provisioning turns on the Karpenter that AKS manages. enabled = false turns both off. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    mode    = optional(string, "self-hosted")<br/>  })</pre> | `{}` | no |
+| <a name="input_kms"></a> [kms](#input\_kms) | Encrypts etcd secrets with a customer-managed key. The module creates the Key Vault. After a destroy, Azure reserves the vault name for 90 days. Set key\_vault\_name to create a vault with a new name. | <pre>object({<br/>    enabled                  = optional(bool, true)<br/>    key_vault_name           = optional(string)<br/>    key_vault_network_access = optional(string, "Public")<br/>  })</pre> | `{}` | no |
 | <a name="input_kube_exec_login_mode"></a> [kube\_exec\_login\_mode](#input\_kube\_exec\_login\_mode) | kubelogin --login mode in kube\_exec. azurecli reuses your az session; use spn, msi or workloadidentity in CI. | `string` | `"azurecli"` | no |
 | <a name="input_local_account_disabled"></a> [local\_account\_disabled](#input\_local\_account\_disabled) | Disables AKS local accounts so every access goes through Entra ID. Set false to keep kube\_admin\_config as a break-glass path. | `bool` | `true` | no |
-| <a name="input_nat_gateway"></a> [nat\_gateway](#input\_nat\_gateway) | NAT Gateway for node egress on the subnet the module creates. enabled defaults to true when the module creates the VNet, and cannot be true with existing\_vnet. | <pre>object({<br/>    enabled              = optional(bool)<br/>    public_ip_count      = optional(number, 1)<br/>    idle_timeout_minutes = optional(number, 4)<br/>  })</pre> | `{}` | no |
+| <a name="input_nat_gateway"></a> [nat\_gateway](#input\_nat\_gateway) | NAT Gateway for node egress. Default: on when the module creates the VNet. It must be off with existing\_vnet. | <pre>object({<br/>    enabled              = optional(bool)<br/>    public_ip_count      = optional(number, 1)<br/>    idle_timeout_minutes = optional(number, 4)<br/>  })</pre> | `{}` | no |
 | <a name="input_node_os_upgrade_channel"></a> [node\_os\_upgrade\_channel](#input\_node\_os\_upgrade\_channel) | AKS node OS image upgrade channel: None, Unmanaged, SecurityPatch or NodeImage. Keep None with kube-ovn so AKS does not reimage the CNI node pool. | `string` | `"None"` | no |
 | <a name="input_pod_cidr"></a> [pod\_cidr](#input\_pod\_cidr) | Pod CIDR the AKS control plane routes to. Pass the cluster\_pod\_cidr output to cni-bootstrap so the CNI uses the same range. | `string` | `"10.244.0.0/16"` | no |
-| <a name="input_private_endpoints"></a> [private\_endpoints](#input\_private\_endpoints) | Private endpoints in the node subnet, one per target resource, keyed by a name you choose. Example subresource\_names: ["blob"], ["vault"], ["registry"]. | <pre>map(object({<br/>    resource_id          = string<br/>    subresource_names    = list(string)<br/>    private_dns_zone_ids = list(string)<br/>  }))</pre> | `{}` | no |
+| <a name="input_private_endpoints"></a> [private\_endpoints](#input\_private\_endpoints) | Private endpoints in the node subnet, one for each target resource. You select the key names. Example subresource\_names: ["blob"], ["vault"], ["registry"]. | <pre>map(object({<br/>    resource_id          = string<br/>    subresource_names    = list(string)<br/>    private_dns_zone_ids = list(string)<br/>  }))</pre> | `{}` | no |
 | <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Resource group for every resource. null generates rg-<name>. | `string` | `null` | no |
 | <a name="input_service_cidr"></a> [service\_cidr](#input\_service\_cidr) | Kubernetes service CIDR, with a prefix longer than /12. It must not overlap the VNet, pod\_cidr or the ranges AKS reserves. | `string` | `"10.96.0.0/16"` | no |
 | <a name="input_sku_tier"></a> [sku\_tier](#input\_sku\_tier) | AKS pricing tier: Free, Standard or Premium. Standard includes the uptime SLA. | `string` | `"Standard"` | no |
-| <a name="input_storage_drivers"></a> [storage\_drivers](#input\_storage\_drivers) | AKS-managed CSI drivers and snapshot controller. All off by default, so storage comes from charts you pin yourself; turn one on to let AKS run and upgrade it. | <pre>object({<br/>    disk                = optional(bool, false)<br/>    file                = optional(bool, false)<br/>    snapshot_controller = optional(bool, false)<br/>  })</pre> | `{}` | no |
+| <a name="input_storage_drivers"></a> [storage\_drivers](#input\_storage\_drivers) | AKS-managed CSI drivers and snapshot controller. Default: all off, and you deploy the charts yourself. Turn one on if AKS must run and upgrade it. | <pre>object({<br/>    disk                = optional(bool, false)<br/>    file                = optional(bool, false)<br/>    snapshot_controller = optional(bool, false)<br/>  })</pre> | `{}` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags for every resource. The Owner tag, when present, seeds the blob CSI storage account name. | `map(string)` | `{}` | no |
 | <a name="input_vnet"></a> [vnet](#input\_vnet) | VNet the module creates; ignored when existing\_vnet is set. Size node\_subnet\_cidr for the maximum node count plus surge and private endpoints. | <pre>object({<br/>    cidr                 = optional(string, "10.0.0.0/16")<br/>    node_subnet_cidr     = optional(string, "10.0.0.0/22")<br/>    database_subnet_cidr = optional(string)<br/>    service_endpoints    = optional(list(string), [])<br/>  })</pre> | `{}` | no |
-| <a name="input_workload_identity"></a> [workload\_identity](#input\_workload\_identity) | Workload identities for external\_dns and cert\_manager. Use overrides.<identity>.enabled to change one, and dns\_zone\_ids to grant it DNS Zone Contributor on those zones. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    overrides = optional(object({<br/>      external_dns = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>      cert_manager = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>    }), {})<br/>  })</pre> | `{}` | no |
+| <a name="input_workload_identity"></a> [workload\_identity](#input\_workload\_identity) | Workload identities for external\_dns and cert\_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns\_zone\_ids to grant it DNS Zone Contributor on those zones. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    overrides = optional(object({<br/>      external_dns = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>      cert_manager = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>    }), {})<br/>  })</pre> | `{}` | no |
 
 ## Outputs
 

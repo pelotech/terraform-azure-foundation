@@ -14,16 +14,14 @@ resource "azurerm_storage_account" "blob_csi" {
   https_traffic_only_enabled      = true
   min_tls_version                 = "TLS1_2"
   allow_nested_items_to_be_public = false
+  shared_access_key_enabled       = var.blob_csi.shared_access_key_enabled
   tags                            = var.tags
 
-  # The kubelet and the pods reach the account from the node subnet. Resource Manager calls, which the CI identities use, are not network rules traffic.
-  dynamic "network_rules" {
-    for_each = local.blob_csi_node_subnet_only ? [1] : []
-    content {
-      default_action             = "Deny"
-      bypass                     = ["AzureServices"]
-      virtual_network_subnet_ids = concat([local.node_subnet_id], var.blob_csi.extra_subnet_ids)
-    }
+  # The block is always set: the provider keeps the account's current rules when it is absent, so Public would never reopen an account.
+  network_rules {
+    default_action             = local.blob_csi_node_subnet_only ? "Deny" : "Allow"
+    bypass                     = ["AzureServices"]
+    virtual_network_subnet_ids = local.blob_csi_node_subnet_only ? concat([local.node_subnet_id], var.blob_csi.extra_subnet_ids) : []
   }
 }
 
