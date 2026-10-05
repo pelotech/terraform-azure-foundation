@@ -50,14 +50,14 @@ run "extra_subnets_join_the_allow_list" {
   }
 }
 
-run "public_network_access_drops_the_rules_and_the_endpoint" {
+run "public_network_access_allows_every_network_and_drops_the_endpoint" {
   command = plan
   variables {
     blob_csi = { enabled = true, network_access = "Public" }
   }
   assert {
-    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 0
-    error_message = "Public leaves the account without network rules"
+    condition     = length(azurerm_storage_account.blob_csi[0].network_rules) == 1 && azurerm_storage_account.blob_csi[0].network_rules[0].default_action == "Allow" && length(azurerm_storage_account.blob_csi[0].network_rules[0].virtual_network_subnet_ids) == 0
+    error_message = "Public sets an explicit Allow with no subnets, so an account that was restricted reopens"
   }
   assert {
     condition     = length(azurerm_subnet.nodes[0].service_endpoint) == 0
