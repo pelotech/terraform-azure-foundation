@@ -450,7 +450,7 @@ variable "blob_csi" {
   })
   default     = {}
   nullable    = false
-  description = "Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed_driver = true only to let AKS run the driver instead of GitOps. Set storage_account_name when the generated <Owner tag><name>csi name is taken. network_access NodeSubnet (default) answers only the node subnet, through a Microsoft.Storage service endpoint the module adds to that subnet; Public answers every network. With existing_vnet, NodeSubnet expects the node subnet to carry that service endpoint already. extra_subnet_ids adds other subnets to the allow list, such as the node subnet of a cluster that restores from these backups; each needs its own Microsoft.Storage service endpoint. shared_access_key_enabled (default false) turns the account keys on; leave it off unless a client can only authenticate with a key or a connection string, since the kubelet mounts with its identity."
+  description = "Blob storage for the blob CSI driver. Default: off. The module creates the storage account, the kubelet grant and the private containers. The README section \"Blob storage\" explains each field."
 
   validation {
     condition     = contains(["NodeSubnet", "Public"], var.blob_csi.network_access)
