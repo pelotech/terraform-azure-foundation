@@ -22,7 +22,7 @@ resource "azurerm_storage_account" "blob_csi" {
     content {
       default_action             = "Deny"
       bypass                     = ["AzureServices"]
-      virtual_network_subnet_ids = [local.node_subnet_id]
+      virtual_network_subnet_ids = concat([local.node_subnet_id], var.blob_csi.extra_subnet_ids)
     }
   }
 }

@@ -39,6 +39,17 @@ run "enabled_creates_a_locked_down_account" {
   }
 }
 
+run "extra_subnets_join_the_allow_list" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true, extra_subnet_ids = ["/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-other/providers/Microsoft.Network/virtualNetworks/vnet-other/subnets/snet-other-nodes"] }
+  }
+  assert {
+    condition     = contains(azurerm_storage_account.blob_csi[0].network_rules[0].virtual_network_subnet_ids, "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-other/providers/Microsoft.Network/virtualNetworks/vnet-other/subnets/snet-other-nodes")
+    error_message = "every extra subnet joins the node subnet in the allow list"
+  }
+}
+
 run "public_network_access_drops_the_rules_and_the_endpoint" {
   command = plan
   variables {
