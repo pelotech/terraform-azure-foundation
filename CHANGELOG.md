@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/pelotech/terraform-azure-foundation/compare/v1.0.0...v1.0.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **blob_csi:** reopen a Public account and turn account keys off by default ([#10](https://github.com/pelotech/terraform-azure-foundation/issues/10)) ([a4dcb7c](https://github.com/pelotech/terraform-azure-foundation/commit/a4dcb7c969c8af4d5daf15a46ed36a8b7cc7c0f6))
+
 ## [1.0.0](https://github.com/pelotech/terraform-azure-foundation/compare/v0.1.0...v1.0.0) (2026-10-05)
 
 
