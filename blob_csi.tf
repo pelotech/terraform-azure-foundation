@@ -16,13 +16,15 @@ resource "azurerm_storage_account" "blob_csi" {
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = var.blob_csi.shared_access_key_enabled
   tags                            = var.tags
+}
 
-  # The block is always set: the provider keeps the account's current rules when it is absent, so Public would never reopen an account.
-  network_rules {
-    default_action             = local.blob_csi_node_subnet_only ? "Deny" : "Allow"
-    bypass                     = ["AzureServices"]
-    virtual_network_subnet_ids = local.blob_csi_node_subnet_only ? concat([local.node_subnet_id], var.blob_csi.extra_subnet_ids) : []
-  }
+# A separate resource, because the inline block cannot hold an open account: the provider reads Allow without rules as no block.
+resource "azurerm_storage_account_network_rules" "blob_csi" {
+  count                      = local.create_blob_storage_account ? 1 : 0
+  storage_account_id         = azurerm_storage_account.blob_csi[0].id
+  default_action             = local.blob_csi_node_subnet_only ? "Deny" : "Allow"
+  bypass                     = ["AzureServices"]
+  virtual_network_subnet_ids = local.blob_csi_node_subnet_only ? concat([local.node_subnet_id], var.blob_csi.extra_subnet_ids) : []
 }
 
 resource "azurerm_storage_container" "blob_csi" {
