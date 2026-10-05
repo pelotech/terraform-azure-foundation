@@ -36,13 +36,21 @@ run "admins_and_readers_get_their_roles" {
     condition     = length(azurerm_role_assignment.access_reader_key_vault) == 1 && azurerm_role_assignment.access_reader_key_vault["33333333-3333-3333-3333-333333333333"].role_definition_name == "Key Vault Reader"
     error_message = "readers get Key Vault Reader on the KMS vault, enough to refresh the key in a plan"
   }
+  assert {
+    condition     = length(azurerm_role_definition.reader_kube_system_secrets) == 1 && azurerm_role_definition.reader_kube_system_secrets[0].permissions[0].data_actions == toset(["Microsoft.ContainerService/managedClusters/secrets/read"])
+    error_message = "one custom role that reads Secrets and nothing else"
+  }
+  assert {
+    condition     = length(azurerm_role_assignment.access_reader_kube_system_secrets) == 1 && azurerm_role_assignment.access_reader_kube_system_secrets["33333333-3333-3333-3333-333333333333"].principal_id == "33333333-3333-3333-3333-333333333333"
+    error_message = "readers get the Secrets role in kube-system only, so a plan sees the Helm releases"
+  }
 }
 
 run "no_access_by_default" {
   command = plan
   assert {
-    condition     = length(azurerm_role_assignment.access) == 0 && length(azurerm_role_assignment.access_admin_key_vault) == 0
-    error_message = "empty access creates no assignments"
+    condition     = length(azurerm_role_assignment.access) == 0 && length(azurerm_role_assignment.access_admin_key_vault) == 0 && length(azurerm_role_definition.reader_kube_system_secrets) == 0
+    error_message = "empty access creates no assignments and no custom role"
   }
 }
 

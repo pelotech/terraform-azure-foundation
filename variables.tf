@@ -384,7 +384,7 @@ variable "access" {
   })
   default     = {}
   nullable    = false
-  description = "Entra object IDs with cluster access. admin_object_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader_object_ids get RBAC Reader and Key Vault Reader."
+  description = "Entra object IDs with cluster access. admin_object_ids get RBAC Cluster Admin and Key Vault Crypto Officer; reader_object_ids get RBAC Reader, Secrets in kube-system and Key Vault Reader. The principal that applies must be in admin_object_ids: it creates the KMS key."
 
   validation {
     condition     = length(distinct(concat(var.access.admin_object_ids, var.access.reader_object_ids))) == length(concat(var.access.admin_object_ids, var.access.reader_object_ids))

@@ -36,3 +36,23 @@ resource "azurerm_role_assignment" "access_reader_key_vault" {
   role_definition_name = "Key Vault Reader"
   principal_id         = each.value
 }
+
+# Helm keeps every release in a Secret, and RBAC Reader excludes Secrets, so a plan by a reader would see each helm_release as missing. This grants Secrets in kube-system only.
+resource "azurerm_role_definition" "reader_kube_system_secrets" {
+  count = var.create_cluster && length(var.access.reader_object_ids) > 0 ? 1 : 0
+  name  = "${var.name} kube-system secrets reader"
+  scope = azurerm_kubernetes_cluster.this[0].id
+
+  permissions {
+    data_actions = ["Microsoft.ContainerService/managedClusters/secrets/read"]
+  }
+
+  assignable_scopes = [azurerm_kubernetes_cluster.this[0].id]
+}
+
+resource "azurerm_role_assignment" "access_reader_kube_system_secrets" {
+  for_each           = var.create_cluster ? toset(var.access.reader_object_ids) : toset([])
+  scope              = "${azurerm_kubernetes_cluster.this[0].id}/namespaces/kube-system"
+  role_definition_id = azurerm_role_definition.reader_kube_system_secrets[0].role_definition_resource_id
+  principal_id       = each.value
+}
