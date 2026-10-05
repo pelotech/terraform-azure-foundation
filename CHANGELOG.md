@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/pelotech/terraform-azure-foundation/compare/v1.0.1...v1.0.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **blob_csi:** hold the network rules in their own resource so an open account plans clean ([#12](https://github.com/pelotech/terraform-azure-foundation/issues/12)) ([ab2ba13](https://github.com/pelotech/terraform-azure-foundation/commit/ab2ba13cea8d56cc4a48c47cf5f7753b3ad9c14a))
+
 ## [1.0.1](https://github.com/pelotech/terraform-azure-foundation/compare/v1.0.0...v1.0.1) (2026-10-05)
 
 
