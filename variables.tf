@@ -444,10 +444,16 @@ variable "blob_csi" {
     create_storage_account = optional(bool, true)
     storage_account_name   = optional(string)
     containers             = optional(list(string), [])
+    network_access         = optional(string, "NodeSubnet")
   })
   default     = {}
   nullable    = false
-  description = "Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed_driver = true only to let AKS run the driver instead of GitOps. Set storage_account_name when the generated <Owner tag><name>csi name is taken."
+  description = "Blob storage for the blob CSI driver, off by default. When enabled the module creates the storage account, the kubelet grant and the private containers; set managed_driver = true only to let AKS run the driver instead of GitOps. Set storage_account_name when the generated <Owner tag><name>csi name is taken. network_access NodeSubnet (default) answers only the node subnet, through a Microsoft.Storage service endpoint the module adds to that subnet; Public answers every network. With existing_vnet, NodeSubnet expects the node subnet to carry that service endpoint already."
+
+  validation {
+    condition     = contains(["NodeSubnet", "Public"], var.blob_csi.network_access)
+    error_message = "blob_csi.network_access must be one of: NodeSubnet, Public."
+  }
 
   validation {
     condition     = var.blob_csi.storage_account_name == null ? true : can(regex("^[a-z0-9]{3,24}$", var.blob_csi.storage_account_name))

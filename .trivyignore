@@ -14,9 +14,3 @@ AVD-AZU-0043
 # outside Azure cannot create the etcd key. kms.key_vault_network_access = "Private" is the hardened
 # path, with a private endpoint the consumer provides.
 AVD-AZU-0013
-
-# The blob CSI storage account has no network rules by default: the driver reaches it from the
-# nodes over the public endpoint, and a default-deny rule needs a Microsoft.Storage service endpoint
-# on the node subnet or a private endpoint, both of which the consumer can add through vnet.service_endpoints
-# and private_endpoints.
-AVD-AZU-0012
