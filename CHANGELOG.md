@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.0](https://github.com/pelotech/terraform-azure-foundation/compare/v0.1.0...v1.0.0) (2026-10-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **blob_csi:** answer only the node subnet by default ([#8](https://github.com/pelotech/terraform-azure-foundation/issues/8))
+
+### Features
+
+* **access:** grant readers kube-system Secrets and drop the deployer Key Vault grant ([#6](https://github.com/pelotech/terraform-azure-foundation/issues/6)) ([0a72885](https://github.com/pelotech/terraform-azure-foundation/commit/0a72885f7bda3bdba5d5b91080215f4299187ac8))
+* **blob_csi:** allow extra subnets on the storage account ([#9](https://github.com/pelotech/terraform-azure-foundation/issues/9)) ([a9150cc](https://github.com/pelotech/terraform-azure-foundation/commit/a9150cc36e9d98e2f7c2fc156f41c51dd445ef7e))
+* **blob_csi:** answer only the node subnet by default ([#8](https://github.com/pelotech/terraform-azure-foundation/issues/8)) ([1d62bc8](https://github.com/pelotech/terraform-azure-foundation/commit/1d62bc86b6a9e6ab723419fd6a8bff7f749e19ec))
+
+
+### Chores
+
+* **deps:** bump nixpkgs from `e554fab` to `e158d9e` ([#4](https://github.com/pelotech/terraform-azure-foundation/issues/4)) ([7779a54](https://github.com/pelotech/terraform-azure-foundation/commit/7779a54ad6b2cdf00368e91a0e1d5cbbe7c592a6))
+* **deps:** update pre-commit hook antonbabenko/pre-commit-terraform to v1.109.2 ([#2](https://github.com/pelotech/terraform-azure-foundation/issues/2)) ([85567e9](https://github.com/pelotech/terraform-azure-foundation/commit/85567e95d79190d113a3eff0d0173bb3da9813a8))
+
 ## 0.1.0 (2026-10-03)
 
 
