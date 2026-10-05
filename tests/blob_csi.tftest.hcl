@@ -39,6 +39,28 @@ run "enabled_creates_a_locked_down_account" {
   }
 }
 
+run "account_keys_are_off_by_default" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true }
+  }
+  assert {
+    condition     = azurerm_storage_account.blob_csi[0].shared_access_key_enabled == false
+    error_message = "the account rejects key and connection string authentication by default"
+  }
+}
+
+run "account_keys_can_be_turned_on" {
+  command = plan
+  variables {
+    blob_csi = { enabled = true, shared_access_key_enabled = true }
+  }
+  assert {
+    condition     = azurerm_storage_account.blob_csi[0].shared_access_key_enabled == true
+    error_message = "shared_access_key_enabled = true keeps the account keys usable"
+  }
+}
+
 run "extra_subnets_join_the_allow_list" {
   command = plan
   variables {
