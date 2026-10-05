@@ -16,14 +16,6 @@ resource "azurerm_key_vault" "kms" {
   tags                          = var.tags
 }
 
-# The identity running terraform needs this to create the key under RBAC authorization.
-resource "azurerm_role_assignment" "deployer_key_vault" {
-  count                = local.kms_enabled ? 1 : 0
-  scope                = azurerm_key_vault.kms[0].id
-  role_definition_name = "Key Vault Crypto Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
-}
-
 resource "azurerm_key_vault_key" "kms" {
   count        = local.kms_enabled ? 1 : 0
   name         = "${var.name}-etcd"
@@ -32,5 +24,6 @@ resource "azurerm_key_vault_key" "kms" {
   key_size     = 2048
   key_opts     = ["decrypt", "encrypt", "sign", "unwrapKey", "verify", "wrapKey"]
 
-  depends_on = [azurerm_role_assignment.deployer_key_vault]
+  # Creating the key under RBAC needs Crypto Officer, so the applying principal must be in access.admin_object_ids.
+  depends_on = [azurerm_role_assignment.access_admin_key_vault]
 }

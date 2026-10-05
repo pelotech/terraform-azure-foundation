@@ -23,10 +23,6 @@ run "defaults" {
     error_message = "an RSA 2048 key named <name>-etcd must exist"
   }
   assert {
-    condition     = azurerm_role_assignment.deployer_key_vault[0].role_definition_name == "Key Vault Crypto Officer" && azurerm_role_assignment.deployer_key_vault[0].principal_id == "00000000-0000-0000-0000-000000000003"
-    error_message = "the applying principal needs Crypto Officer to create the key under RBAC"
-  }
-  assert {
     condition     = length(azurerm_kubernetes_cluster.this) == 1 && azurerm_kubernetes_cluster.this[0].name == "platformdev" && azurerm_kubernetes_cluster.this[0].dns_prefix == "platformdev"
     error_message = "the cluster and its dns prefix take the stack name"
   }
@@ -123,7 +119,7 @@ run "kms_disabled" {
     kms = { enabled = false }
   }
   assert {
-    condition     = length(azurerm_key_vault.kms) == 0 && length(azurerm_key_vault_key.kms) == 0 && length(azurerm_role_assignment.deployer_key_vault) == 0
+    condition     = length(azurerm_key_vault.kms) == 0 && length(azurerm_key_vault_key.kms) == 0 && length(azurerm_role_assignment.access_admin_key_vault) == 0
     error_message = "kms.enabled = false must create no vault, key or assignment"
   }
   assert {
