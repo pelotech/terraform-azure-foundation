@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/pelotech/terraform-azure-foundation/compare/v1.0.2...v1.1.0) (2026-10-08)
+
+
+### Features
+
+* **cluster:** leave the workload identity webhook to the GitOps layer ([#14](https://github.com/pelotech/terraform-azure-foundation/issues/14)) ([dd00cfc](https://github.com/pelotech/terraform-azure-foundation/commit/dd00cfc486f7807ae32184dc0f710652d194bc7b))
+
 ## [1.0.2](https://github.com/pelotech/terraform-azure-foundation/compare/v1.0.1...v1.0.2) (2026-10-05)
 
 
