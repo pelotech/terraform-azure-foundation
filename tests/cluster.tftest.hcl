@@ -35,8 +35,8 @@ run "defaults" {
     error_message = "public endpoint with local accounts off by default"
   }
   assert {
-    condition     = azurerm_kubernetes_cluster.this[0].oidc_issuer_enabled == true && azurerm_kubernetes_cluster.this[0].workload_identity_enabled == true
-    error_message = "OIDC issuer and workload identity are always on"
+    condition     = azurerm_kubernetes_cluster.this[0].oidc_issuer_enabled == true && azurerm_kubernetes_cluster.this[0].workload_identity_enabled == false
+    error_message = "the OIDC issuer is always on; the AKS workload identity webhook is off, the GitOps layer runs it"
   }
   assert {
     condition     = azurerm_kubernetes_cluster.this[0].azure_active_directory_role_based_access_control[0].azure_rbac_enabled == true && azurerm_kubernetes_cluster.this[0].azure_active_directory_role_based_access_control[0].tenant_id == "00000000-0000-0000-0000-000000000001"

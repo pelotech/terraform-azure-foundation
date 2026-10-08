@@ -142,6 +142,10 @@ The module uses Microsoft Entra Workload ID for every identity. For each control
 
 Without the label, the pod gets no token.
 
+The webhook that reads the label comes from the GitOps layer, the foundation component
+`azure/workload-identity-webhook`, as on RKE2. Set `workload_identity.managed_webhook = true` only if AKS must
+run its own.
+
 DNS grants:
 
 - Azure has no wildcard DNS scope. List each zone in `dns_zone_ids`.
@@ -180,6 +184,7 @@ All AKS-managed CSI drivers are off by default.
 | `storage_drivers.file`                 | Azure Files CSI                          |
 | `storage_drivers.snapshot_controller`  | CSI snapshot controller                  |
 | `blob_csi.managed_driver`              | Azure Blob CSI                           |
+| `workload_identity.managed_webhook`    | Azure workload identity webhook          |
 
 ### Blob storage
 
@@ -317,7 +322,7 @@ No modules.
 | <a name="input_storage_drivers"></a> [storage\_drivers](#input\_storage\_drivers) | AKS-managed CSI drivers and snapshot controller. Default: all off, and you deploy the charts yourself. Turn one on if AKS must run and upgrade it. | <pre>object({<br/>    disk                = optional(bool, false)<br/>    file                = optional(bool, false)<br/>    snapshot_controller = optional(bool, false)<br/>  })</pre> | `{}` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags for every resource. The Owner tag, when present, seeds the blob CSI storage account name. | `map(string)` | `{}` | no |
 | <a name="input_vnet"></a> [vnet](#input\_vnet) | VNet the module creates; ignored when existing\_vnet is set. Size node\_subnet\_cidr for the maximum node count plus surge and private endpoints. | <pre>object({<br/>    cidr                 = optional(string, "10.0.0.0/16")<br/>    node_subnet_cidr     = optional(string, "10.0.0.0/22")<br/>    database_subnet_cidr = optional(string)<br/>    service_endpoints    = optional(list(string), [])<br/>  })</pre> | `{}` | no |
-| <a name="input_workload_identity"></a> [workload\_identity](#input\_workload\_identity) | Workload identities for external\_dns and cert\_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns\_zone\_ids to grant it DNS Zone Contributor on those zones. | <pre>object({<br/>    enabled = optional(bool, true)<br/>    overrides = optional(object({<br/>      external_dns = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>      cert_manager = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>    }), {})<br/>  })</pre> | `{}` | no |
+| <a name="input_workload_identity"></a> [workload\_identity](#input\_workload\_identity) | Workload identities for external\_dns and cert\_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns\_zone\_ids to grant it DNS Zone Contributor on those zones. managed\_webhook = true keeps the AKS workload identity webhook; by default the GitOps layer runs it, from the foundation component azure/workload-identity-webhook. | <pre>object({<br/>    enabled         = optional(bool, true)<br/>    managed_webhook = optional(bool, false)<br/>    overrides = optional(object({<br/>      external_dns = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>      cert_manager = optional(object({<br/>        enabled      = optional(bool)<br/>        dns_zone_ids = optional(list(string), [])<br/>      }), {})<br/>    }), {})<br/>  })</pre> | `{}` | no |
 
 ## Outputs
 

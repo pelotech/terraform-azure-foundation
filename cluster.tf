@@ -49,7 +49,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   private_cluster_enabled   = !var.cluster_endpoint_public_access
   local_account_disabled    = var.local_account_disabled
   oidc_issuer_enabled       = true
-  workload_identity_enabled = true
+  workload_identity_enabled = var.workload_identity.managed_webhook
   # azurerm treats an absent channel as none; "none" is not an accepted literal.
   automatic_upgrade_channel = var.automatic_upgrade_channel == "none" ? null : var.automatic_upgrade_channel
   node_os_upgrade_channel   = var.node_os_upgrade_channel

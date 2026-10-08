@@ -124,3 +124,14 @@ run "reader_grant_dedups_resource_group_casing" {
     error_message = "one Reader grant per resource group regardless of id casing, one Contributor grant per zone"
   }
 }
+
+run "managed_webhook_is_opt_in" {
+  command = plan
+  variables {
+    workload_identity = { managed_webhook = true }
+  }
+  assert {
+    condition     = azurerm_kubernetes_cluster.this[0].workload_identity_enabled == true
+    error_message = "managed_webhook = true turns the AKS workload identity webhook on"
+  }
+}
