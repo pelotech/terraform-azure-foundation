@@ -394,7 +394,8 @@ variable "access" {
 
 variable "workload_identity" {
   type = object({
-    enabled = optional(bool, true)
+    enabled         = optional(bool, true)
+    managed_webhook = optional(bool, false)
     overrides = optional(object({
       external_dns = optional(object({
         enabled      = optional(bool)
@@ -408,7 +409,7 @@ variable "workload_identity" {
   })
   default     = {}
   nullable    = false
-  description = "Workload identities for external_dns and cert_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns_zone_ids to grant it DNS Zone Contributor on those zones."
+  description = "Workload identities for external_dns and cert_manager. Set overrides.<identity>.enabled to turn one on or off. Set dns_zone_ids to grant it DNS Zone Contributor on those zones. managed_webhook = true keeps the AKS workload identity webhook; by default the GitOps layer runs it, from the foundation component azure/workload-identity-webhook."
 }
 
 variable "karpenter" {
